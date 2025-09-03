@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Scent Keeper</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed, #a78bfa);
+            min-height: 100vh;
+            color: #2c2c2c;
+        }
+
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            min-height: 100vh;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: linear-gradient(45deg, #8b5cf6, #7c3aed);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .nav-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid #8b5cf6;
+        }
+
+        .nav-tab {
+            flex: 1;
+            padding: 15px 10px;
+            text-align: center;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+
+        .nav-tab.active {
+            background: #8b5cf6;
+            color: white;
+        }
+
+        .nav-tab:hover {
+            background: #c4b5fd;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 20px;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .scanner-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto 20px;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            background: #000;
+        }
+
+        #scanner-view {
+            width: 100%;
+            height: 300px;
+            background: #000;
+        }
+
+        .scan-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 2px;
+            background: #8b5cf6;
+            box-shadow: 0 0 10px #8b5cf6;
+            animation: scan 2s ease-in-out infinite;
+        }
+
+        @keyframes scan {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        /* --- Unified Button Style --- */
+        .btn,
+        .btn-secondary,
+        .file-label,
+        .take-photo-label {
+            display: inline-block;
+            background: linear-gradient(45deg, #a78bfa, #9333ea);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 107, 157, 0.13);
+            padding: 12px 24px;
+            text-align: center;
+            margin-bottom: 0;
+        }
+        .btn:hover,
+        .btn-secondary:hover,
+        .file-label:hover,
+        .take-photo-label:hover {
+            background: linear-gradient(45deg, #7c3aed, #a78bfa);
+            color: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(124, 58, 237, 0.2);
+        }
+        .btn:active,
+        .btn-secondary:active,
+        .file-label:active,
+        .take-photo-label:active {
+            transform: translateY(0);
+        }
+        .btn.red {
+            background: linear-gradient(45deg, #dc3545, #a21caf);
+            color: white;
+        }
+        .btn.red:hover {
+            background: linear-gradient(45deg, #b91c1c, #dc3545);
+            box-shadow: 0 6px 20px rgba(220,53,69,0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #c4b5fd, #a78bfa);
+            color: #222;
+        }
+        .btn-secondary:hover {
+            background: linear-gradient(45deg, #a78bfa, #c4b5fd);
+            color: #8b5cf6;
+        }
+
+        /* --- Backup tab buttons --- */
+        .backup-buttons {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+        .backup-buttons .btn,
+        .backup-buttons .file-label {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #7c3aed;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #c4b5fd;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+            background: white;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #8b5cf6;
+            box-shadow: 0 0 10px rgba(255, 107, 157, 0.2);
+        }
+
+        .rating-container {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+        }
+        .star {
+            font-size: 28px;
+            color: #ddd;
+            cursor: pointer;
+            transition: color 0.2s ease;
+            filter: drop-shadow(0 1px 1px #ccc);
+        }
+        .star.active {
+            color: #FFC107;
+            text-shadow: 0 0 3px #FFD700;
+        }
+        .star:hover {
+            color: #FFD700;
+        }
+
+        .inventory-item {
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border-left: 5px solid #8b5cf6;
+            position: relative;
+        }
+
+        .inventory-item h3 {
+            color: #7c3aed;
+            margin-bottom: 4px;
+            font-size: 18px;
+        }
+        .inventory-item .barcode-display {
+            color: #444;
+            font-size: 13px;
+            margin-bottom: 8px;
+            background: #f3f3ff;
+            border-radius: 4px;
+            padding: 2px 8px;
+            display: inline-block;
+        }
+
+        .inventory-item p {
+            margin-bottom: 5px;
+            color: #666;
+        }
+
+        .inventory-item .quantity {
+            background: #8b5cf6;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 14px;
+            font-weight: bold;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+
+        .inventory-item .rating {
+            color: #FFC107;
+            font-size: 18px;
+        }
+
+        .filter-container {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #c4b5fd;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .no-items {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-style: italic;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 400px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .close {
+            float: right;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .close:hover {
+            color: #8b5cf6;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        #product-image-preview {
+            width: 100%;
+            max-width: 160px;
+            height: auto;
+            display: block;
+            margin: 0 auto 10px auto;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            object-fit: contain;
+        }
+        #product-image-upload {
+            width: 100%;
+            max-width: 180px;
+            margin: 0 auto;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        #take-photo {
+            display: none;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                margin: 0;
+                border-radius: 0;
+            }
+            .nav-tab {
+                font-size: 12px;
+                padding: 12px 8px;
+            }
+            .scanner-container,
+            #scanner-view {
+                height: 220px !important;
+                min-height: 160px;
+            }
+            .backup-buttons {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>My Scent Keeper</h1>
+            <p>Personal Inventory Manager</p>
+        </div>
+
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="showTab('scanner', event)">📱 Scan</button>
+            <button class="nav-tab" onclick="showTab('inventory', event)">📋 Inventory</button>
+            <button class="nav-tab" onclick="showTab('backup', event)">💾 Backup</button>
+        </div>
+
+        <!-- Scanner Tab -->
+        <div id="scanner" class="tab-content active">
+            <div class="scanner-container">
+                <div id="scanner-view"></div>
+                <div class="scan-overlay"></div>
+            </div>
+            <div class="backup-buttons" style="flex-direction:column;gap:10px;">
+                <button class="btn" onclick="startScanning()">Start Scanning</button>
+                <button class="btn btn-secondary" onclick="stopScanning()">Stop Scanning</button>
+                <button class="btn btn-secondary" onclick="manualEntry()">Manual Entry</button>
+            </div>
+            <div id="scan-result"></div>
+        </div>
+
+        <!-- Inventory Tab -->
+        <div id="inventory" class="tab-content">
+            <div class="filter-container">
+                <input type="text" class="search-box" id="search" placeholder="Search products..." oninput="filterInventory()">
+                <select id="location-filter" onchange="filterInventory()">
+                    <option value="">All Locations</option>
+                </select>
+            </div>
+            <div id="inventory-list"></div>
+        </div>
+
+        <!-- Backup Tab -->
+        <div id="backup" class="tab-content">
+            <h3 style="color: #7c3aed; margin-bottom: 20px;">Export & Import Data</h3>
+            <div class="backup-buttons">
+                <button class="btn" onclick="exportToExcel()">📊 Download Excel File</button>
+                <label for="import-file" class="file-label">📁 Import Excel File</label>
+                <input type="file" id="import-file" class="file-input" accept=".xlsx,.xls" onchange="importFromExcel(event)">
+                <button class="btn red" onclick="clearAllData()">🗑️ Clear All Data</button>
+            </div>
+            <p style="margin-top: 15px; color: #666; font-size: 14px;">
+                Export your inventory to Excel for backup, or import a previously saved file to restore your data.
+            </p>
+        </div>
+    </div>
+
+    <!-- Product Entry Modal -->
+    <div id="product-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h3 id="modal-title" style="color: #7c3aed; margin-bottom: 20px;">Add New Product</h3>
+            <div id="modal-success"></div>
+            
+            <img id="product-image-preview" src="" alt="Product Image" style="display:none;" />
+            <label for="take-photo" class="take-photo-label">📷 Upload/Take Photo</label>
+            <input type="file" accept="image/*" capture="environment" id="take-photo">
+
+            <div class="form-group">
+                <label for="product-name">Product Name:</label>
+                <input type="text" id="product-name" placeholder="e.g., Japanese Cherry Blossom Body Cream">
+            </div>
+
+            <div class="form-group">
+                <label class="barcode-label" for="product-barcode">Barcode:</label>
+                <input type="text" id="product-barcode" readonly>
+            </div>
+
+            <div class="form-group">
+                <label for="product-quantity">Quantity:</label>
+                <input type="number" id="product-quantity" min="1" value="1">
+            </div>
+
+            <div class="form-group">
+                <label for="product-location">Storage Location:</label>
+                <input type="text" id="product-location" placeholder="e.g., Bathroom Cabinet, Bedroom Dresser">
+            </div>
+
+            <div class="form-group">
+                <label for="product-notes">Notes:</label>
+                <textarea id="product-notes" rows="3" placeholder="Any notes about this product..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Rating (1-5):</label>
+                <div class="rating-container" id="rating-stars">
+                    <span class="star" data-rating="1">★</span>
+                    <span class="star" data-rating="2">★</span>
+                    <span class="star" data-rating="3">★</span>
+                    <span class="star" data-rating="4">★</span>
+                    <span class="star" data-rating="5">★</span>
+                </div>
+            </div>
+
+            <input type="hidden" id="editing-index">
+
+            <button class="btn" onclick="saveProduct()">💾 Save Product</button>
+        </div>
+    </div>
+
+    <script>
+        let inventory = [];
+        let isScanning = false;
+        let currentRating = 0;
+        let scannedProductImage = '';
+        let scannedProductName = '';
+        let scannedBarcode = '';
+        let matches = [];
+
+        // Load inventory from local storage
+        function loadInventory() {
+            const saved = localStorage.getItem('bbw_inventory');
+            if (saved) {
+                inventory = JSON.parse(saved);
+            }
+            updateInventoryDisplay();
+            updateLocationFilter();
+        }
+
+        // Save inventory to local storage
+        function saveInventory() {
+            localStorage.setItem('bbw_inventory', JSON.stringify(inventory));
+            updateLocationFilter();
+        }
+
+        // Tab switching
+        function showTab(tabName, event) {
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            document.getElementById(tabName).classList.add('active');
+            if (event && event.target) {
+                event.target.classList.add('active');
+            }
+
+            if (tabName === 'inventory') {
+                updateInventoryDisplay();
+            }
+        }
+
+        // Barcode scanning
+        function startScanning() {
+            if (isScanning) return;
+            isScanning = true;
+            document.getElementById('scanner-view').innerHTML = '';
+
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: document.querySelector('#scanner-view'),
+                    constraints: {
+                        width: 400,
+                        height: 300,
+                        facingMode: "environment"
+                    }
+                },
+                locator: {
+                    patchSize: "medium",
+                    halfSample: true
+                },
+                numOfWorkers: 2,
+                decoder: {
+                    readers: ["code_128_reader", "ean_reader", "ean_8_reader"]
+                },
+                locate: true
+            }, function(err) {
+                if (err) {
+                    console.log(err);
+                    alert('Camera access denied or not available. Please try manual entry.');
+                    isScanning = false;
+                    return;
+                }
+                Quagga.start();
+            });
+
+            Quagga.onDetected(function(data) {
+                const code = data.codeResult.code;
+                stopScanning();
+                handleBarcodeDetected(code);
+            });
+        }
+
+        function stopScanning() {
+            if (!isScanning) return;
+            isScanning = false;
+            Quagga.stop();
+            document.getElementById('scanner-view').innerHTML = '';
+        }
+
+        // Free barcode API lookup
+        async function fetchBarcodeInfo(barcode) {
+            try {
+                const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.product) {
+                        return {
+                            name: data.product.product_name || '',
+                            image: data.product.image_front_url || ''
+                        };
+                    }
+                }
+            } catch (error) {}
+            try {
+                const response = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${barcode}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.items && data.items.length) {
+                        return {
+                            name: data.items[0].title || '',
+                            image: data.items[0].images[0] || ''
+                        };
+                    }
+                }
+            } catch (error) {}
+            try {
+                return {
+                    name: '',
+                    image: 'https://via.placeholder.com/150?text=No+Image'
+                };
+            } catch (error) {
+                return {
+                    name: '',
+                    image: 'https://via.placeholder.com/150?text=No+Image'
+                };
+            }
+        }
+
+        async function handleBarcodeDetected(barcode) {
+            scannedBarcode = barcode;
+            const info = await fetchBarcodeInfo(barcode);
+            scannedProductImage = info.image;
+            scannedProductName = info.name;
+            matches = inventory.filter(item => item.barcode === barcode);
+
+            if (matches.length > 0) {
+                let html = `<div class="success-message">
+                    <img src="${scannedProductImage || 'https://via.placeholder.com/100?text=Product'}" alt="Product Image" style="max-width:100px;border-radius:8px;margin-bottom:10px;">
+                    <div>Barcode: <span class="barcode-display">${barcode}</span></div>
+                    <div>Product already in inventory:</div>
+                </div>`;
+                html += matches.map((item, idx) => `
+                    <div class="inventory-item">
+                        ${item.image ? `<img src="${item.image}" alt="Product Image" style="max-width:70px; float:right; margin-left:10px; border-radius:6px;">` : ''}
+                        <h3>${item.name}</h3>
+                        <span class="barcode-display">${item.barcode}</span>
+                        <div class="quantity">Quantity: ${item.quantity}</div>
+                        <p><strong>Location:</strong> ${item.location}</p>
+                        <p><strong>Rating:</strong> <span class="rating">${'★'.repeat(item.rating)}${'☆'.repeat(5-item.rating)}</span> (${item.rating}/5)</p>
+                        ${item.notes ? `<p><strong>Notes:</strong> ${item.notes}</p>` : ''}
+                        <p style="font-size: 12px; color: #999;"><strong>Added:</strong> ${new Date(item.dateAdded).toLocaleDateString()}</p>
+                        <button class="btn btn-secondary" onclick="editProduct(${inventory.indexOf(item)})" style="margin-top: 10px; padding: 8px 16px; font-size: 14px;">Edit Product</button>
+                    </div>
+                `).join('');
+                html += `<button class="btn" onclick="openProductModal('${barcode}', -1, '${scannedProductName.replace(/'/g, "\\'")}', '${scannedProductImage}')">Create New</button>`;
+                document.getElementById('scan-result').innerHTML = html;
+            } else {
+                document.getElementById('scan-result').innerHTML = `
+                    <div class="success-message">
+                        <img src="${scannedProductImage || 'https://via.placeholder.com/100?text=Product'}" alt="Product Image" style="max-width:100px;border-radius:8px;margin-bottom:10px;">
+                        <div>Barcode: <span class="barcode-display">${barcode}</span></div>
+                        New product detected! Click below to add it to your inventory.
+                    </div>
+                    <button class="btn" onclick="openProductModal('${barcode}', -1, '${scannedProductName.replace(/'/g, "\\'")}', '${scannedProductImage}')">Add Product</button>
+                `;
+            }
+        }
+
+        function manualEntry() {
+            scannedBarcode = '';
+            scannedProductImage = '';
+            scannedProductName = '';
+            openProductModal('');
+        }
+
+        function openProductModal(barcode = '', editIndex = -1, autofillName = '', autofillImage = '') {
+            const modal = document.getElementById('product-modal');
+            const isEditing = editIndex >= 0;
+            const imagePreview = document.getElementById('product-image-preview');
+            const barcodeField = document.getElementById('product-barcode');
+            document.getElementById('take-photo').value = '';
+            if (isEditing) {
+                const product = inventory[editIndex];
+                document.getElementById('modal-title').textContent = 'Edit Product';
+                document.getElementById('product-name').value = product.name;
+                barcodeField.value = product.barcode;
+                document.getElementById('product-quantity').value = product.quantity;
+                document.getElementById('product-location').value = product.location;
+                document.getElementById('product-notes').value = product.notes || '';
+                document.getElementById('editing-index').value = editIndex;
+                setRating(product.rating);
+                if (product.image) {
+                    imagePreview.src = product.image;
+                    imagePreview.style.display = 'block';
+                } else {
+                    imagePreview.src = '';
+                    imagePreview.style.display = 'none';
+                }
+            } else {
+                document.getElementById('modal-title').textContent = 'Add New Product';
+                document.getElementById('product-name').value = autofillName || '';
+                barcodeField.value = barcode || scannedBarcode || '';
+                document.getElementById('product-quantity').value = 1;
+                document.getElementById('product-location').value = '';
+                document.getElementById('product-notes').value = '';
+                document.getElementById('editing-index').value = -1;
+                setRating(0);
+                if (autofillImage) {
+                    imagePreview.src = autofillImage;
+                    imagePreview.style.display = 'block';
+                } else {
+                    imagePreview.src = '';
+                    imagePreview.style.display = 'none';
+                }
+            }
+            document.getElementById('modal-success').innerHTML = '';
+            modal.style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('product-modal').style.display = 'none';
+        }
+
+        function editProduct(index) {
+            const product = inventory[index];
+            openProductModal(product.barcode, index, product.name, product.image || '');
+        }
+
+        // Rating system (1-5 stars)
+        function setRating(rating) {
+            currentRating = rating;
+            const stars = document.querySelectorAll('#rating-stars .star');
+            stars.forEach((star, index) => {
+                star.classList.toggle('active', index < rating);
+            });
+        }
+
+        // Rating click handlers and photo upload
+        document.addEventListener('DOMContentLoaded', function() {
+            const stars = document.querySelectorAll('#rating-stars .star');
+            stars.forEach(star => {
+                star.addEventListener('click', function() {
+                    setRating(parseInt(this.dataset.rating));
+                });
+            });
+
+            // Unified photo upload handling
+            document.getElementById('take-photo').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    document.getElementById('product-image-preview').src = ev.target.result;
+                    document.getElementById('product-image-preview').style.display = 'block';
+                    // Close camera app on mobile after photo is taken
+                    document.getElementById('take-photo').value = '';
+                };
+                reader.readAsDataURL(file);
+            });
+
+            document.querySelector('.take-photo-label').addEventListener('click', function() {
+                document.getElementById('take-photo').click();
+            });
+        });
+
+        function saveProduct() {
+            const name = document.getElementById('product-name').value.trim();
+            const quantity = parseInt(document.getElementById('product-quantity').value);
+            const location = document.getElementById('product-location').value.trim();
+            const notes = document.getElementById('product-notes').value.trim();
+            const barcode = document.getElementById('product-barcode').value || '';
+            const editIndex = parseInt(document.getElementById('editing-index').value);
+            const image = document.getElementById('product-image-preview').src || '';
+
+            if (!name || !location || quantity < 1 || currentRating === 0) {
+                alert('Please fill in all required fields and set a rating.');
+                return;
+            }
+
+            const product = {
+                name,
+                quantity,
+                location,
+                notes,
+                rating: currentRating,
+                barcode,
+                image,
+                dateAdded: new Date().toISOString()
+            };
+
+            if (editIndex >= 0) {
+                inventory[editIndex] = product;
+            } else {
+                inventory.push(product);
+            }
+            saveInventory();
+
+            document.getElementById('modal-success').innerHTML = `
+                <div class="success-message">
+                    Product ${editIndex >= 0 ? 'updated' : 'added'} successfully!
+                </div>
+            `;
+
+            setTimeout(() => {
+                closeModal();
+                document.getElementById('scan-result').innerHTML = '';
+                updateInventoryDisplay();
+            }, 1200);
+        }
+
+        function updateInventoryDisplay() {
+            const container = document.getElementById('inventory-list');
+
+            if (inventory.length === 0) {
+                container.innerHTML = '<div class="no-items">No products in inventory yet. Start scanning!</div>';
+                return;
+            }
+
+            let filteredInventory = [...inventory];
+
+            // Apply search filter
+            const searchTerm = document.getElementById('search').value.toLowerCase();
+            if (searchTerm) {
+                filteredInventory = filteredInventory.filter(item =>
+                    item.name.toLowerCase().includes(searchTerm) ||
+                    item.location.toLowerCase().includes(searchTerm) ||
+                    (item.notes && item.notes.toLowerCase().includes(searchTerm)) ||
+                    (item.barcode && item.barcode.includes(searchTerm))
+                );
+            }
+
+            // Apply location filter
+            const locationFilter = document.getElementById('location-filter').value;
+            if (locationFilter) {
+                filteredInventory = filteredInventory.filter(item => item.location === locationFilter);
+            }
+
+            if (filteredInventory.length === 0) {
+                container.innerHTML = '<div class="no-items">No products match your filters.</div>';
+                return;
+            }
+
+            container.innerHTML = filteredInventory.map((item, originalIndex) => {
+                const realIndex = inventory.indexOf(item);
+                return `
+                    <div class="inventory-item">
+                        ${item.image ? `<img src="${item.image}" alt="Product Image" style="max-width:70px; float:right; margin-left:10px; border-radius:6px;">` : ''}
+                        <h3>${item.name}</h3>
+                        <span class="barcode-display">${item.barcode}</span>
+                        <div class="quantity">Quantity: ${item.quantity}</div>
+                        <p><strong>Location:</strong> ${item.location}</p>
+                        <p><strong>Rating:</strong> <span class="rating">${'★'.repeat(item.rating)}${'☆'.repeat(5-item.rating)}</span> (${item.rating}/5)</p>
+                        ${item.notes ? `<p><strong>Notes:</strong> ${item.notes}</p>` : ''}
+                        <p style="font-size: 12px; color: #999;"><strong>Added:</strong> ${new Date(item.dateAdded).toLocaleDateString()}</p>
+                        <button class="btn btn-secondary" onclick="editProduct(${realIndex})" style="margin-top: 10px; padding: 8px 16px; font-size: 14px;">Edit</button>
+                        <button class="btn red" onclick="deleteProduct(${realIndex})" style="margin-top: 5px; padding: 8px 16px; font-size: 14px;">Delete</button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function deleteProduct(index) {
+            if (confirm('Are you sure you want to delete this product?')) {
+                inventory.splice(index, 1);
+                saveInventory();
+                updateInventoryDisplay();
+            }
+        }
+
+        function updateLocationFilter() {
+            const locations = [...new Set(inventory.map(item => item.location))].sort();
+            const select = document.getElementById('location-filter');
+
+            select.innerHTML = '<option value="">All Locations</option>' +
+                locations.map(location => `<option value="${location}">${location}</option>`).join('');
+        }
+
+        function filterInventory() {
+            updateInventoryDisplay();
+        }
+
+        // Excel export/import functions
+        function exportToExcel() {
+            if (inventory.length === 0) {
+                alert('No data to export.');
+                return;
+            }
+
+            const worksheet = XLSX.utils.json_to_sheet(inventory.map(item => ({
+                'Product Name': item.name,
+                'Quantity': item.quantity,
+                'Location': item.location,
+                'Rating': item.rating,
+                'Notes': item.notes || '',
+                'Barcode': item.barcode || '',
+                'Image': item.image || '',
+                'Date Added': new Date(item.dateAdded).toLocaleDateString()
+            })));
+
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'BBW Inventory');
+
+            const filename = `BBW_Inventory_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(workbook, filename);
+        }
+
+        function importFromExcel(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const workbook = XLSX.read(e.target.result, { type: 'array' });
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const data = XLSX.utils.sheet_to_json(worksheet);
+
+                    const importedInventory = data.map(row => ({
+                        name: row['Product Name'] || '',
+                        quantity: parseInt(row['Quantity']) || 1,
+                        location: row['Location'] || '',
+                        rating: parseInt(row['Rating']) || 1,
+                        notes: row['Notes'] || '',
+                        barcode: row['Barcode'] || '',
+                        image: row['Image'] || '',
+                        dateAdded: row['Date Added'] ? new Date(row['Date Added']).toISOString() : new Date().toISOString()
+                    }));
+
+                    if (confirm(`Import ${importedInventory.length} products? This will replace your current inventory.`)) {
+                        inventory = importedInventory;
+                        saveInventory();
+                        updateInventoryDisplay();
+                        alert('Import successful!');
+                    }
+                } catch (error) {
+                    alert('Error reading file. Please make sure it\'s a valid Excel file.');
+                    console.error(error);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function clearAllData() {
+            if (confirm('Are you sure you want to clear all inventory data? This cannot be undone.')) {
+                inventory = [];
+                saveInventory();
+                updateInventoryDisplay();
+            }
+        }
+
+        // Initial load
+        document.addEventListener('DOMContentLoaded', loadInventory);
+    </script>
+</body>
+</html>
