@@ -15,7 +15,7 @@
 
         body {
             font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #ff6b9d, #c44569, #f8b500);
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed, #f8b500);
             min-height: 100vh;
             color: #2c2c2c;
         }
@@ -29,7 +29,7 @@
         }
 
         .header {
-            background: linear-gradient(45deg, #ff6b9d, #c44569);
+            background: linear-gradient(45deg, #8b5cf6, #7c3aed);
             color: white;
             padding: 20px;
             text-align: center;
@@ -49,7 +49,7 @@
         .nav-tabs {
             display: flex;
             background: #f8f9fa;
-            border-bottom: 2px solid #ff6b9d;
+            border-bottom: 2px solid #8b5cf6;
         }
 
         .nav-tab {
@@ -66,12 +66,12 @@
         }
 
         .nav-tab.active {
-            background: #ff6b9d;
+            background: #8b5cf6;
             color: white;
         }
 
         .nav-tab:hover {
-            background: #ffb3d1;
+            background: #c4b5fd;
             color: white;
         }
 
@@ -107,8 +107,8 @@
             transform: translate(-50%, -50%);
             width: 80%;
             height: 2px;
-            background: #ff6b9d;
-            box-shadow: 0 0 10px #ff6b9d;
+            background: #8b5cf6;
+            box-shadow: 0 0 10px #8b5cf6;
             animation: scan 2s ease-in-out infinite;
         }
 
@@ -118,7 +118,7 @@
         }
 
         .btn {
-            background: linear-gradient(45deg, #ff6b9d, #c44569);
+            background: linear-gradient(45deg, #8b5cf6, #7c3aed);
             color: white;
             border: none;
             padding: 12px 20px;
@@ -158,7 +158,7 @@
             display: block;
             margin-bottom: 8px;
             font-weight: bold;
-            color: #c44569;
+            color: #7c3aed;
         }
 
         .form-group input,
@@ -166,7 +166,7 @@
         .form-group select {
             width: 100%;
             padding: 12px;
-            border: 2px solid #ffb3d1;
+            border: 2px solid #c4b5fd;
             border-radius: 10px;
             font-size: 16px;
             transition: border-color 0.3s ease;
@@ -177,7 +177,7 @@
         .form-group textarea:focus,
         .form-group select:focus {
             outline: none;
-            border-color: #ff6b9d;
+            border-color: #8b5cf6;
             box-shadow: 0 0 10px rgba(255, 107, 157, 0.2);
         }
 
@@ -208,11 +208,11 @@
             padding: 15px;
             margin-bottom: 15px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-            border-left: 5px solid #ff6b9d;
+            border-left: 5px solid #8b5cf6;
         }
 
         .inventory-item h3 {
-            color: #c44569;
+            color: #7c3aed;
             margin-bottom: 10px;
             font-size: 18px;
         }
@@ -223,7 +223,7 @@
         }
 
         .inventory-item .quantity {
-            background: #ff6b9d;
+            background: #8b5cf6;
             color: white;
             padding: 5px 10px;
             border-radius: 15px;
@@ -248,7 +248,7 @@
         .search-box {
             width: 100%;
             padding: 10px;
-            border: 2px solid #ffb3d1;
+            border: 2px solid #c4b5fd;
             border-radius: 8px;
             font-size: 14px;
             margin-bottom: 10px;
@@ -294,7 +294,7 @@
         }
 
         .close:hover {
-            color: #ff6b9d;
+            color: #8b5cf6;
         }
 
         .success-message {
@@ -378,7 +378,7 @@
 
         <!-- Backup Tab -->
         <div id="backup" class="tab-content">
-            <h3 style="color: #c44569; margin-bottom: 20px;">Export & Import Data</h3>
+            <h3 style="color: #7c3aed; margin-bottom: 20px;">Export & Import Data</h3>
             <button class="btn" onclick="exportToExcel()">📊 Download Excel File</button>
             <label for="import-file" class="file-label">📁 Import Excel File</label>
             <input type="file" id="import-file" class="file-input" accept=".xlsx,.xls" onchange="importFromExcel(event)">
@@ -393,7 +393,7 @@
     <div id="product-modal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal()">&times;</span>
-            <h3 id="modal-title" style="color: #c44569; margin-bottom: 20px;">Add New Product</h3>
+            <h3 id="modal-title" style="color: #7c3aed; margin-bottom: 20px;">Add New Product</h3>
             <div id="modal-success"></div>
             
             <div class="form-group">
