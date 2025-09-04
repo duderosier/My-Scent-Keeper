@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Scent Keeper</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/idb@7/build/umd.js"></script>
+    <style>
+        /* --- All your existing CSS remains unchanged --- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed, #a78bfa);
+            min-height: 100vh;
+            color: #2c2c2c;
+        }
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            min-height: 100vh;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background: linear-gradient(45deg, #8b5cf6, #7c3aed);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .nav-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid #8b5cf6;
+        }
+        .nav-tab {
+            flex: 1;
+            padding: 15px 10px;
+            text-align: center;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+        .nav-tab.active {
+            background: #8b5cf6;
+            color: white;
+        }
+        .nav-tab:hover {
+            background: #c4b5fd;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+            padding: 20px;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .scanner-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto 20px;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            background: #000;
+        }
+        #scanner-view {
+            width: 100%;
+            height: 300px;
+            background: #000;
+            position: relative;
+            overflow: hidden;
+        }
+        #scanner-view video,
+        #scanner-view canvas {
+            position: absolute;
+            inset: 0;
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover;
+            transform: none;
+            display: block;
+        }
+        .scan-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 2px;
+            background: #8b5cf6;
+            box-shadow: 0 0 10px #8b5cf6;
+            animation: scan 2s ease-in-out infinite;
+        }
+        @keyframes scan {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+        
+        /* Enhanced scanning guidance styles */
+        .scan-guidance {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            z-index: 10;
+            min-width: 200px;
+            text-align: center;
+        }
+        
+        .scan-progress {
+            margin-top: 8px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .progress-bar-scan {
+            height: 100%;
+            background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+            width: 0%;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+        
+        /* Flashlight button styles */
+        .flashlight-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.7);
+            border: none;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 15;
+            transition: all 0.3s ease;
+        }
+        
+        .flashlight-btn:hover {
+            background: rgba(0, 0, 0, 0.9);
+            transform: scale(1.1);
+        }
+        
+        .flashlight-btn.active {
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+        }
+        
+        /* Success animation styles */
+        @keyframes scanSuccess {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .scan-success {
+            animation: scanSuccess 0.6s ease-in-out;
+        }
+        
+        .success-pulse {
+            border: 3px solid #10b981;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+            animation: successPulse 0.8s ease-in-out;
+        }
+        
+        @keyframes successPulse {
+            0% { box-shadow: 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 rgba(16, 185, 129, 0); }
+        }
+        
+        /* Scanner settings styles */
+        .scanner-settings {
+            margin-top: 15px;
+            border-top: 1px solid #e0e0e0;
+            padding-top: 15px;
+        }
+        
+        .scanner-settings details {
+            background: rgba(139, 92, 246, 0.1);
+            border-radius: 8px;
+            padding: 10px;
+        }
+        
+        .scanner-settings summary {
+            cursor: pointer;
+            font-weight: bold;
+            color: #7c3aed;
+            margin-bottom: 5px;
+        }
+        
+        .settings-content {
+            margin-top: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+        }
+        
+        .settings-content label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .settings-content select {
+            margin-left: 10px;
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .settings-content small {
+            display: block;
+            color: #666;
+            font-style: italic;
+            margin-top: 5px;
+        }
+        .btn,
+        .btn-secondary,
+        .file-label,
+        .take-photo-label {
+            display: inline-block;
+            background: linear-gradient(45deg, #a78bfa, #9333ea);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 107, 157, 0.13);
+            padding: 12px 24px;
+            text-align: center;
+            margin-bottom: 0;
+        }
+        .btn:hover,
+        .btn-secondary:hover,
+        .file-label:hover,
+        .take-photo-label:hover {
+            background: linear-gradient(45deg, #7c3aed, #a78bfa);
+            color: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(124, 58, 237, 0.2);
+        }
+        .btn:active,
+        .btn-secondary:active,
+        .file-label:active,
+        .take-photo-label:active {
+            transform: translateY(0);
+        }
+        .btn.red {
+            background: linear-gradient(45deg, #dc3545, #a21caf);
+            color: white;
+        }
+        .btn.red:hover {
+            background: linear-gradient(45deg, #b91c1c, #dc3545);
+            box-shadow: 0 6px 20px rgba(220,53,69,0.4);
+        }
+        .btn-secondary {
+            background: linear-gradient(45deg, #c4b5fd, #a78bfa);
+            color: #222;
+        }
+        .btn-secondary:hover {
+            background: linear-gradient(45deg, #a78bfa, #c4b5fd);
+            color: #8b5cf6;
+        }
+        .backup-buttons {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+        .backup-buttons .btn,
+        .backup-buttons .file-label {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        .file-input {
+            display: none;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #7c3aed;
+        }
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #c4b5fd;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+            background: white;
+        }
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #8b5cf6;
+            box-shadow: 0 0 10px rgba(255, 107, 157, 0.2);
+        }
+        .rating-container {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+        }
+        .star {
+            font-size: 28px;
+            color: #ddd;
+            cursor: pointer;
+            transition: color 0.2s ease;
+            filter: drop-shadow(0 1px 1px #ccc);
+        }
+        .star.active {
+            color: #FFC107;
+            text-shadow: 0 0 3px #FFD700;
+        }
+        .star:hover {
+            color: #FFD700;
+        }
+        .inventory-item {
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border-left: 5px solid #8b5cf6;
+            position: relative;
+        }
+        .inventory-item h3 {
+            color: #7c3aed;
+            margin-bottom: 4px;
+            font-size: 18px;
+        }
+        .inventory-item .barcode-display {
+            color: #444;
+            font-size: 13px;
+            margin-bottom: 8px;
+            background: #f3f3ff;
+            border-radius: 4px;
+            padding: 2px 8px;
+            display: inline-block;
+        }
+        .inventory-item p {
+            margin-bottom: 5px;
+            color: #666;
+        }
+        .inventory-item .quantity {
+            background: #8b5cf6;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 14px;
+            font-weight: bold;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+        .inventory-item .rating {
+            color: #FFC107;
+            font-size: 18px;
+        }
+        .filter-container {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .search-box {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #c4b5fd;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        .search-box:focus {
+            outline: none;
+            border-color: #8b5cf6;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.2);
+        }
+        .no-items {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-style: italic;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+        }
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 400px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .close {
+            float: right;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+        .close:hover {
+            color: #8b5cf6;
+        }
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            text-align: center;
+        }
+        #product-image-preview {
+            width: 100%;
+            max-width: 160px;
+            height: auto;
+            max-height: 120px;
+            display: block;
+            margin: 0 auto 10px auto;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            object-fit: contain;
+        }
+        #product-image-upload, #product-take-photo {
+            width: 100%;
+            max-width: 180px;
+            margin: 0 auto;
+            margin-bottom: 10px;
+            display: block;
+        }
+        #product-take-photo {
+            display: none;
+        }
+        #product-image-upload {
+            display: none;
+        }
+        .upload-photo-label,
+        .take-photo-label {
+            margin-bottom: 8px;
+            width: 100%;
+        }
+        .filter-results-info {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-style: italic;
+        }
+        /* New CSS for image modal */
+        .image-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 2000;
+            cursor: pointer;
+        }
+        .image-modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+        .image-modal img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 10px;
+        }
+        .image-modal-close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            color: white;
+            font-size: 30px;
+            cursor: pointer;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2001;
+        }
+        .image-modal-close:hover {
+            background: rgba(0, 0, 0, 0.8);
+        }
+        .inventory-item-image {
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        .inventory-item-image:hover {
+            transform: scale(1.05);
+        }
+        .loading-indicator {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            text-align: center;
+            font-size: 14px;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #8b5cf6, #7c3aed);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        @media (max-width: 480px) {
+            .container {
+                margin: 0;
+                border-radius: 0;
+            }
+            .nav-tab {
+                font-size: 12px;
+                padding: 12px 8px;
+            }
+            .scanner-container,
+            #scanner-view {
+                height: 220px !important;
+                min-height: 160px;
+            }
+            .backup-buttons {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>My Scent Keeper</h1>
+            <p>Personal Inventory Manager</p>
+        </div>
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="showTab('scanner', event)">📱 Scan</button>
+            <button class="nav-tab" onclick="showTab('inventory', event)">📋 Inventory</button>
+            <button class="nav-tab" onclick="showTab('backup', event)">💾 Backup</button>
+        </div>
+        <!-- Scanner Tab -->
+        <div id="scanner" class="tab-content active">
+            <div class="scanner-container">
+                <div id="scanner-view"></div>
+                <div class="scan-overlay"></div>
+                <!-- Flashlight toggle -->
+                <button id="flashlight-toggle" class="flashlight-btn" onclick="toggleFlashlight()" style="display: none;">
+                    🔦
+                </button>
+            </div>
+            <div class="backup-buttons" style="flex-direction:column;gap:10px;">
+                <button class="btn" onclick="startScanning()">Start Scanning</button>
+                <button class="btn btn-secondary" onclick="stopScanning()">Stop Scanning</button>
+                <button class="btn btn-secondary" onclick="manualEntry()">Manual Entry</button>
+            </div>
+            <div id="scan-result"></div>
+        </div>
+        <!-- Inventory Tab -->
+        <div id="inventory" class="tab-content">
+            <div class="filter-container">
+                <input type="text" class="search-box" id="search" placeholder="Search products by name, location, notes, or barcode..." oninput="filterInventory()">
+                <select id="location-filter" onchange="filterInventory()">
+                    <option value="">All Locations</option>
+                </select>
+                <div id="filter-results-info" class="filter-results-info"></div>
+            </div>
+            <div id="inventory-list"></div>
+        </div>
+        <!-- Backup Tab -->
+        <div id="backup" class="tab-content">
+            <h3 style="color: #7c3aed; margin-bottom: 20px;">Export & Import Data</h3>
+            <div class="backup-buttons">
+                <button class="btn" onclick="exportToZip()">📦 Download Backup</button>
+                <label for="import-file" class="file-label">📁 Import Backup</label>
+                <input type="file" id="import-file" class="file-input" accept=".zip" onchange="importFromZip(event)">
+                <button class="btn red" onclick="clearAllData()">🗑️ Clear All Data</button>
+            </div>
+            <div id="backup-progress" style="display: none;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <div id="progress-text" class="loading-indicator">Processing...</div>
+            </div>
+        </div>
+    </div>
+    <!-- Product Entry Modal -->
+    <div id="product-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h3 id="modal-title" style="color: #7c3aed; margin-bottom: 20px;">Add New Product</h3>
+            <div id="modal-success"></div>
+            <img id="product-image-preview" src="" alt="Product Image" style="display:none;" />
+            <div style="display:flex; flex-direction:row; gap:8px; margin-bottom:12px;">
+                <label for="product-image-upload" class="upload-photo-label btn-secondary" style="cursor:pointer; flex: 1;">📤 Upload Photo</label>
+                <label for="product-take-photo" class="take-photo-label btn-secondary" style="cursor:pointer; flex: 1;">📷 Take Photo</label>
+            </div>
+            <input type="file" accept="image/*" id="product-image-upload" style="display:none;">
+            <input type="file" accept="image/*" capture="environment" id="product-take-photo" style="display:none;">
+            <div class="form-group">
+                <label for="product-name">Product Name:</label>
+                <input type="text" id="product-name" placeholder="e.g., 3 Wick Marshmallow Fireside">
+            </div>
+            <div class="form-group">
+                <label class="barcode-label" for="product-barcode">Barcode:</label>
+                <input type="text" id="product-barcode">
+            </div>
+            <div class="form-group">
+                <label for="product-quantity">Quantity:</label>
+                <input type="number" id="product-quantity" min="1" value="1">
+            </div>
+            <div class="form-group">
+                <label for="product-location">Storage Location:</label>
+                <input type="text" id="product-location" placeholder="e.g., Cabinet 1 shelf 1">
+            </div>
+            <div class="form-group">
+                <label for="product-notes">Notes:</label>
+                <textarea id="product-notes" rows="3" placeholder="Any notes about this product..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Rating (1-5):</label>
+                <div class="rating-container" id="rating-stars">
+                    <span class="star" data-rating="1">★</span>
+                    <span class="star" data-rating="2">★</span>
+                    <span class="star" data-rating="3">★</span>
+                    <span class="star" data-rating="4">★</span>
+                    <span class="star" data-rating="5">★</span>
+                </div>
+            </div>
+            <input type="hidden" id="editing-index">
+            <div id="save-success-message"></div>
+            <button class="btn" onclick="saveProduct()">💾 Save Product</button>
+        </div>
+    </div>
+    
+    <!-- Image Modal -->
+    <div id="image-modal" class="image-modal" onclick="closeImageModal()">
+        <div class="image-modal-close" onclick="closeImageModal()">&times;</div>
+        <div class="image-modal-content">
+            <img id="image-modal-img" src="" alt="Product Image">
+        </div>
+    </div>
+
+    <script>
+        let inventory = [];
+        let isScanning = false;
+        let currentRating = 0;
+        let scannedBarcode = '';
+        let currentFilteredInventory = [];
+        let db;
+        
+        let scanConfirmations = {};
+        let scanConfirmationThreshold = 2; // Set to "Balanced"
+        let isFlashlightOn = false;
+
+        // Initialize IndexedDB
+        async function initDB() {
+            if (db) return db;
+            
+            try {
+                db = await idb.openDB('MyScentKeeperDB', 1, {
+                    upgrade(db) {
+                        // Products store
+                        const productStore = db.createObjectStore('products', {
+                            keyPath: 'id',
+                            autoIncrement: true
+                        });
+                        productStore.createIndex('barcode', 'barcode', { unique: false });
+                        productStore.createIndex('name', 'name', { unique: false });
+                        
+                        // Images store
+                        const imageStore = db.createObjectStore('images', {
+                            keyPath: 'productId'
+                        });
+                    }
+                });
+                console.log('IndexedDB initialized successfully');
+                return db;
+            } catch (error) {
+                console.error('Failed to initialize IndexedDB:', error);
+                // Fallback to localStorage mode
+                return null;
+            }
+        }
+
+        // Initialize the app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', async function() {
+            await initDB();
+            await loadInventory();
+            initializeEventListeners();
+        });
+
+        // Initialize event listeners
+        function initializeEventListeners() {
+            // Star rating event listeners
+            document.querySelectorAll('#rating-stars .star').forEach(star => {
+                star.addEventListener('click', function() {
+                    const rating = parseInt(this.dataset.rating);
+                    setRating(rating);
+                });
+            });
+
+            // Image upload event listeners - Fixed with proper file handling
+            const uploadInput = document.getElementById('product-image-upload');
+            const takePhotoInput = document.getElementById('product-take-photo');
+            
+            uploadInput.addEventListener('change', function(e) {
+                console.log('Upload photo file selected:', e.target.files[0]);
+                if (e.target.files && e.target.files[0]) {
+                    handleImageUpload(e.target.files[0]);
+                }
+            });
+
+            takePhotoInput.addEventListener('change', function(e) {
+                console.log('Take photo file selected:', e.target.files[0]);
+                if (e.target.files && e.target.files[0]) {
+                    handleImageUpload(e.target.files[0]);
+                }
+            });
+
+            // Modal click outside to close
+            document.getElementById('product-modal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeModal();
+                }
+            });
+        }
+
+        // New function to open image modal
+        function openImageModal(imageSrc) {
+            const modal = document.getElementById('image-modal');
+            const modalImg = document.getElementById('image-modal-img');
+            modalImg.src = imageSrc;
+            modal.style.display = 'block';
+        }
+
+        // New function to close image modal
+        function closeImageModal() {
+            const modal = document.getElementById('image-modal');
+            modal.style.display = 'none';
+        }
+
+        // Load inventory from IndexedDB
+        async function loadInventory() {
+            try {
+                const database = await initDB();
+                if (!database) {
+                    // Fallback to localStorage
+                    const saved = localStorage.getItem('bbw_inventory');
+                    if (saved) {
+                        inventory = JSON.parse(saved);
+                        console.log('Loaded inventory from localStorage:', inventory.length, 'items');
+                    }
+                } else {
+                    // Load from IndexedDB
+                    const products = await database.getAll('products');
+                    inventory = products || [];
+                    console.log('Loaded inventory from IndexedDB:', inventory.length, 'items');
+                }
+            } catch (error) {
+                console.error('Error loading inventory:', error);
+                inventory = [];
+            }
+            
+            updateInventoryDisplay();
+            updateLocationFilter();
+        }
+
+        // Save inventory to IndexedDB
+        async function saveInventory() {
+            try {
+                const database = await initDB();
+                if (!database) {
+                    // Fallback to localStorage
+                    localStorage.setItem('bbw_inventory', JSON.stringify(inventory));
+                    console.log('Saved inventory to localStorage:', inventory.length, 'items');
+                } else {
+                    // Clear existing products and save new ones
+                    const tx = database.transaction('products', 'readwrite');
+                    await tx.store.clear();
+                    
+                    for (const product of inventory) {
+                        // Ensure product has an id for IndexedDB
+                        const { id, ...productData } = product;
+                        if (id) {
+                            await tx.store.put(product);
+                        } else {
+                            await tx.store.add(productData);
+                        }
+                    }
+                    await tx.done;
+                    console.log('Saved inventory to IndexedDB:', inventory.length, 'items');
+                }
+            } catch (error) {
+                console.error('Error saving inventory:', error);
+            }
+            
+            updateInventoryDisplay();
+            updateLocationFilter();
+        }
+
+        // Save image to IndexedDB
+        async function saveProductImage(productId, imageData) {
+            try {
+                const database = await initDB();
+                if (database && imageData) {
+                    await database.put('images', {
+                        productId: productId,
+                        data: imageData
+                    });
+                    console.log('Saved image for product', productId);
+                }
+            } catch (error) {
+                console.error('Error saving image:', error);
+            }
+        }
+
+        // Load image from IndexedDB
+        async function loadProductImage(productId) {
+            try {
+                const database = await initDB();
+                if (database) {
+                    const imageRecord = await database.get('images', productId);
+                    return imageRecord?.data || null;
+                }
+                return null;
+            } catch (error) {
+                console.error('Error loading image:', error);
+                return null;
+            }
+        }
+
+        function showTab(tabName, event) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            // Remove active class from all nav tabs
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            const selectedTab = document.getElementById(tabName);
+            if (selectedTab) {
+                selectedTab.classList.add('active');
+            }
+            
+            // Add active class to clicked nav tab
+            if (event && event.target) {
+                event.target.classList.add('active');
+            }
+            
+            // Force update inventory when switching to inventory tab
+            if (tabName === 'inventory') {
+                console.log('Switching to inventory tab, forcing update...');
+                setTimeout(() => {
+                    updateInventoryDisplay();
+                }, 100);
+            }
+        }
+
+        function startScanning() {
+            if (isScanning) return;
+            isScanning = true;
+            
+            scanConfirmations = {};
+            document.getElementById('scanner-view').innerHTML = '';
+            document.getElementById('scan-result').innerHTML = '';
+            
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: document.querySelector('#scanner-view'),
+                    constraints: {
+                        width: { min: 400, ideal: 800, max: 1920 },
+                        height: { min: 300, ideal: 600, max: 1080 },
+                        facingMode: "environment",
+                        aspectRatio: { min: 1, max: 2 }
+                    }
+                },
+                locator: {
+                    patchSize: "large",
+                    halfSample: true
+                },
+                numOfWorkers: navigator.hardwareConcurrency || 4,
+                decoder: {
+                    readers: [
+                        "code_128_reader", 
+                        "ean_reader", 
+                        "ean_8_reader",
+                        "code_39_reader",
+                        "codabar_reader"
+                    ],
+                    debug: {
+                        drawBoundingBox: false,
+                        showFrequency: false,
+                        drawScanline: false,
+                        showPattern: false
+                    },
+                    multiple: false
+                },
+                locate: true
+            }, function(err) {
+                if (err) {
+                    console.error(err);
+                    document.getElementById('scan-result').innerHTML = `<p class="error">Error initializing scanner: ${err}</p>`;
+                    isScanning = false;
+                    return;
+                }
+                console.log("Scanner initialization finished. Ready to start.");
+                Quagga.start();
+                document.getElementById('scanner-view').classList.add('scan-success');
+                setTimeout(() => {
+                    document.getElementById('scanner-view').classList.remove('scan-success');
+                }, 600);
+            });
+
+            Quagga.onDetected(handleDetection);
+        }
+
+        function stopScanning() {
+            if (!isScanning) return;
+            isScanning = false;
+            if (Quagga.stop) {
+                Quagga.stop();
+            }
+            document.getElementById('scanner-view').innerHTML = '';
+            console.log('Scanner stopped.');
+        }
+
+        async function handleDetection(data) {
+            const barcode = data.codeResult.code;
+            if (!barcode) return;
+
+            // Use a confirmation mechanism to prevent multiple triggers
+            if (scannedBarcode === barcode) return;
+            scannedBarcode = barcode;
+            
+            stopScanning();
+            
+            const existingProduct = inventory.find(p => p.barcode === barcode);
+
+            if (existingProduct) {
+                // Product with this barcode exists
+                await displayScannedProduct(existingProduct);
+            } else {
+                // No product with this barcode, open modal to add a new one
+                openModal(null, barcode);
+            }
+            
+            // Reset scanned barcode after a delay to allow re-scanning
+            setTimeout(() => {
+                scannedBarcode = '';
+            }, 3000);
+        }
+
+        async function displayScannedProduct(product) {
+            const scanResultDiv = document.getElementById('scan-result');
+            const productImage = await loadProductImage(product.id);
+            const imageUrl = productImage ? URL.createObjectURL(new Blob([productImage])) : 'placeholder.png';
+
+            scanResultDiv.innerHTML = `
+                <h3 style="color: #7c3aed; margin-bottom: 15px;">Product Found</h3>
+                <div class="inventory-item">
+                    ${productImage ? `<img src="${imageUrl}" alt="${product.name}" class="inventory-item-image" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; float: left; margin-right: 15px;" onclick="openImageModal('${imageUrl}')">` : ''}
+                    <h3>${product.name}</h3>
+                    <p class="barcode-display">${product.barcode}</p>
+                    <p><strong>Location:</strong> ${product.location || 'N/A'}</p>
+                    <div class="quantity">Quantity: ${product.quantity}</div>
+                </div>
+                <div class="backup-buttons" style="flex-direction:column;gap:10px;margin-top:15px;">
+                    <button class="btn" onclick="openModal(null, '${product.barcode}')">Create New Entry</button>
+                </div>
+            `;
+        }
+        
+        async function saveProduct() {
+            const name = document.getElementById('product-name').value.trim();
+            const barcode = document.getElementById('product-barcode').value.trim();
+            const quantity = parseInt(document.getElementById('product-quantity').value) || 1;
+            const location = document.getElementById('product-location').value.trim();
+            const notes = document.getElementById('product-notes').value.trim();
+            const editingIndex = document.getElementById('editing-index').value;
+            const imagePreview = document.getElementById('product-image-preview');
+            
+            if (!name) {
+                alert('Product name is required.');
+                return;
+            }
+
+            // Check for duplicate name on new entries
+            if (!editingIndex) {
+                const duplicateNameProduct = inventory.find(p => p.name.toLowerCase() === name.toLowerCase());
+                if (duplicateNameProduct) {
+                    if (!confirm('A product with this name already exists. Are you sure you want to add another one?')) {
+                        return; // Stop if user cancels
+                    }
+                }
+            }
+
+            const productData = {
+                name,
+                barcode,
+                quantity,
+                location,
+                notes,
+                rating: currentRating
+            };
+
+            let savedProduct;
+
+            if (editingIndex !== '') {
+                // Update existing product
+                const index = parseInt(editingIndex);
+                productData.id = inventory[index].id;
+                inventory[index] = { ...inventory[index], ...productData };
+                savedProduct = inventory[index];
+            } else {
+                // Add new product
+                productData.id = Date.now(); // Simple unique ID
+                inventory.push(productData);
+                savedProduct = productData;
+            }
+
+            // Handle image saving
+            if (imagePreview.dataset.imageData) {
+                const blob = await (await fetch(imagePreview.dataset.imageData)).blob();
+                await saveProductImage(savedProduct.id, blob);
+            }
+
+            await saveInventory();
+            closeModal();
+        }
+
+        function manualEntry() {
+            openModal();
+        }
+
+        // The rest of your JavaScript functions remain the same...
+        // e.g., openModal, closeModal, updateInventoryDisplay, etc.
+        // Make sure you have these functions from your original file.
+        // I am including them here for completeness based on your provided code.
+
+        function openModal(index = null, barcode = null) {
+            const modal = document.getElementById('product-modal');
+            const modalTitle = document.getElementById('modal-title');
+            
+            // Reset form
+            document.getElementById('product-name').value = '';
+            document.getElementById('product-barcode').value = '';
+            document.getElementById('product-quantity').value = '1';
+            document.getElementById('product-location').value = '';
+            document.getElementById('product-notes').value = '';
+            document.getElementById('editing-index').value = '';
+            document.getElementById('product-image-preview').style.display = 'none';
+            document.getElementById('product-image-preview').src = '';
+            delete document.getElementById('product-image-preview').dataset.imageData;
+            setRating(0);
+
+            if (index !== null) {
+                // Editing existing product
+                modalTitle.textContent = 'Edit Product';
+                const product = inventory[index];
+                document.getElementById('product-name').value = product.name;
+                document.getElementById('product-barcode').value = product.barcode;
+                document.getElementById('product-quantity').value = product.quantity;
+                document.getElementById('product-location').value = product.location;
+                document.getElementById('product-notes').value = product.notes;
+                document.getElementById('editing-index').value = index;
+                setRating(product.rating || 0);
+                
+                // Load and display image if exists
+                loadProductImage(product.id).then(imageBlob => {
+                    if (imageBlob) {
+                        const imageUrl = URL.createObjectURL(imageBlob);
+                        const preview = document.getElementById('product-image-preview');
+                        preview.src = imageUrl;
+                        preview.style.display = 'block';
+                        preview.dataset.imageData = imageUrl;
+                    }
+                });
+
+            } else {
+                // Adding new product
+                modalTitle.textContent = 'Add New Product';
+                if (barcode) {
+                    document.getElementById('product-barcode').value = barcode;
+                }
+            }
+            
+            modal.style.display = 'block';
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('product-modal');
+            modal.style.display = 'none';
+             // Clean up object URLs to prevent memory leaks
+            const preview = document.getElementById('product-image-preview');
+            if (preview.src.startsWith('blob:')) {
+                URL.revokeObjectURL(preview.src);
+            }
+        }
+
+        function setRating(rating) {
+            currentRating = rating;
+            const stars = document.querySelectorAll('#rating-stars .star');
+            stars.forEach(star => {
+                if (parseInt(star.dataset.rating) <= rating) {
+                    star.classList.add('active');
+                } else {
+                    star.classList.remove('active');
+                }
+            });
+        }
+        
+        function handleImageUpload(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('product-image-preview');
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+                preview.dataset.imageData = e.target.result; // Store base64 data
+            }
+            reader.readAsDataURL(file);
+        }
+
+        async function updateInventoryDisplay() {
+            // This function should be in your file, ensure it's correct
+            // For example:
+            const list = document.getElementById('inventory-list');
+            list.innerHTML = ''; // Clear existing list
+            
+            const itemsToDisplay = currentFilteredInventory.length > 0 ? currentFilteredInventory : inventory;
+
+            if (itemsToDisplay.length === 0) {
+                list.innerHTML = '<p class="no-items">No products in inventory.</p>';
+                return;
+            }
+
+            for (const [index, product] of inventory.entries()) {
+                 const itemDiv = document.createElement('div');
+                 itemDiv.className = 'inventory-item';
+                 
+                 const productImage = await loadProductImage(product.id);
+                 const imageUrl = productImage ? URL.createObjectURL(new Blob([productImage])) : '';
+
+                 itemDiv.innerHTML = `
+                    ${imageUrl ? `<img src="${imageUrl}" alt="${product.name}" class="inventory-item-image" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; float: left; margin-right: 15px;" onclick="openImageModal('${imageUrl}')">` : ''}
+                    <h3 onclick="openModal(${index})">${product.name}</h3>
+                    <p class="barcode-display">${product.barcode}</p>
+                    <p><strong>Location:</strong> ${product.location || 'N/A'}</p>
+                    <div class="quantity">Quantity: ${product.quantity}</div>
+                    ${product.rating ? `<div class="rating">${'★'.repeat(product.rating)}${'☆'.repeat(5 - product.rating)}</div>` : ''}
+                    <button class="btn red" style="position: absolute; top: 10px; right: 10px; padding: 5px 10px; font-size: 12px;" onclick="deleteProduct(${index}, event)">Delete</button>
+                 `;
+                 list.appendChild(itemDiv);
+            }
+        }
+        
+        function filterInventory() {
+            // This function should also be in your file
+            const searchTerm = document.getElementById('search').value.toLowerCase();
+            const locationFilter = document.getElementById('location-filter').value;
+
+            currentFilteredInventory = inventory.filter(product => {
+                const matchesSearch = searchTerm === '' ||
+                    product.name.toLowerCase().includes(searchTerm) ||
+                    (product.location && product.location.toLowerCase().includes(searchTerm)) ||
+                    (product.notes && product.notes.toLowerCase().includes(searchTerm)) ||
+                    (product.barcode && product.barcode.includes(searchTerm));
+
+                const matchesLocation = locationFilter === '' || product.location === locationFilter;
+
+                return matchesSearch && matchesLocation;
+            });
+
+            document.getElementById('filter-results-info').textContent = `Showing ${currentFilteredInventory.length} of ${inventory.length} items.`;
+            updateInventoryDisplayWithFilter(); // A modified display function for filtered results
+        }
+
+        async function updateInventoryDisplayWithFilter() {
+            const list = document.getElementById('inventory-list');
+            list.innerHTML = '';
+
+            if (currentFilteredInventory.length === 0) {
+                list.innerHTML = '<p class="no-items">No products match your search.</p>';
+                return;
+            }
+
+            for (const product of currentFilteredInventory) {
+                const originalIndex = inventory.findIndex(p => p.id === product.id);
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'inventory-item';
+                
+                const productImage = await loadProductImage(product.id);
+                const imageUrl = productImage ? URL.createObjectURL(new Blob([productImage])) : '';
+
+                itemDiv.innerHTML = `
+                   ${imageUrl ? `<img src="${imageUrl}" alt="${product.name}" class="inventory-item-image" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; float: left; margin-right: 15px;" onclick="openImageModal('${imageUrl}')">` : ''}
+                   <h3 onclick="openModal(${originalIndex})">${product.name}</h3>
+                   <p class="barcode-display">${product.barcode}</p>
+                   <p><strong>Location:</strong> ${product.location || 'N/A'}</p>
+                   <div class="quantity">Quantity: ${product.quantity}</div>
+                   ${product.rating ? `<div class="rating">${'★'.repeat(product.rating)}${'☆'.repeat(5 - product.rating)}</div>` : ''}
+                   <button class="btn red" style="position: absolute; top: 10px; right: 10px; padding: 5px 10px; font-size: 12px;" onclick="deleteProduct(${originalIndex}, event)">Delete</button>
+                `;
+                list.appendChild(itemDiv);
+            }
+        }
+
+
+        function updateLocationFilter() {
+            // This function should be in your file
+            const locations = [...new Set(inventory.map(p => p.location).filter(Boolean))];
+            const select = document.getElementById('location-filter');
+            select.innerHTML = '<option value="">All Locations</option>';
+            locations.forEach(loc => {
+                const option = document.createElement('option');
+                option.value = loc;
+                option.textContent = loc;
+                select.appendChild(option);
+            });
+        }
+
+        async function deleteProduct(index, event) {
+            event.stopPropagation();
+            if (confirm(`Are you sure you want to delete "${inventory[index].name}"?`)) {
+                const product = inventory[index];
+                inventory.splice(index, 1);
+                
+                // Also delete image from DB
+                const database = await initDB();
+                if (database) {
+                    await database.delete('images', product.id);
+                }
+
+                await saveInventory();
+            }
+        }
+        
+        async function clearAllData() {
+            if (confirm('Are you sure you want to delete ALL data? This cannot be undone.')) {
+                inventory = [];
+                const database = await initDB();
+                if (database) {
+                    await database.clear('products');
+                    await database.clear('images');
+                } else {
+                    localStorage.removeItem('bbw_inventory');
+                }
+                updateInventoryDisplay();
+                updateLocationFilter();
+                alert('All data has been cleared.');
+            }
+        }
+
+        async function exportToZip() {
+            if (inventory.length === 0) {
+                alert('Inventory is empty. Nothing to export.');
+                return;
+            }
+
+            const zip = new JSZip();
+            const progressFill = document.getElementById('progress-fill');
+            const progressText = document.getElementById('progress-text');
+            document.getElementById('backup-progress').style.display = 'block';
+
+            // Add inventory data as a JSON file
+            zip.file('inventory.json', JSON.stringify(inventory, null, 2));
+
+            // Add images to an 'images' folder
+            const imgFolder = zip.folder('images');
+            let processedImages = 0;
+            const totalImages = inventory.filter(p => p.id).length;
+
+            for (const product of inventory) {
+                if (product.id) {
+                    const imageBlob = await loadProductImage(product.id);
+                    if (imageBlob) {
+                        imgFolder.file(`${product.id}.png`, imageBlob);
+                    }
+                }
+                processedImages++;
+                const progress = (processedImages / totalImages) * 100;
+                progressFill.style.width = `${progress}%`;
+                progressText.textContent = `Packaging item ${processedImages} of ${totalImages}...`;
+            }
+            
+            progressText.textContent = 'Generating ZIP file...';
+            zip.generateAsync({ type: 'blob' })
+                .then(function(content) {
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(content);
+                    const date = new Date().toISOString().slice(0, 10);
+                    link.download = `my-scent-keeper-backup-${date}.zip`;
+                    link.click();
+                    document.getElementById('backup-progress').style.display = 'none';
+                });
+        }
+
+        async function importFromZip(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const progressFill = document.getElementById('progress-fill');
+            const progressText = document.getElementById('progress-text');
+            document.getElementById('backup-progress').style.display = 'block';
+
+            const zip = await JSZip.loadAsync(file);
+            const inventoryFile = zip.file('inventory.json');
+            
+            if (!inventoryFile) {
+                alert('Invalid backup file: inventory.json not found.');
+                document.getElementById('backup-progress').style.display = 'none';
+                return;
+            }
+
+            const inventoryData = JSON.parse(await inventoryFile.async('string'));
+            
+            if (confirm(`This will replace your current inventory with ${inventoryData.length} items from the backup. Continue?`)) {
+                inventory = inventoryData;
+                
+                // Clear existing images before import
+                const db = await initDB();
+                if(db) await db.clear('images');
+
+                const imageFiles = zip.folder('images').files;
+                let processedImages = 0;
+                const totalImages = Object.keys(imageFiles).length;
+
+                for (const relativePath in imageFiles) {
+                    if (!imageFiles[relativePath].dir) {
+                        const imageFile = imageFiles[relativePath];
+                        const productId = parseInt(imageFile.name.split('/')[1].replace('.png', ''));
+                        const imageBlob = await imageFile.async('blob');
+                        await saveProductImage(productId, imageBlob);
+                    }
+                    processedImages++;
+                    const progress = (processedImages / totalImages) * 100;
+                    progressFill.style.width = `${progress}%`;
+                    progressText.textContent = `Importing image ${processedImages} of ${totalImages}...`;
+                }
+
+                await saveInventory();
+                alert('Import successful!');
+                document.getElementById('backup-progress').style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
