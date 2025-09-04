@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Scent Keeper</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/idb@7/build/umd.js"></script>
+    <style>
+        /* --- All your existing CSS remains unchanged --- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed, #a78bfa);
+            min-height: 100vh;
+            color: #2c2c2c;
+        }
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            min-height: 100vh;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background: linear-gradient(45deg, #8b5cf6, #7c3aed);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .nav-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid #8b5cf6;
+        }
+        .nav-tab {
+            flex: 1;
+            padding: 15px 10px;
+            text-align: center;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+        .nav-tab.active {
+            background: #8b5cf6;
+            color: white;
+        }
+        .nav-tab:hover {
+            background: #c4b5fd;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+            padding: 20px;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .scanner-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto 20px;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            background: #000;
+        }
+        #scanner-view {
+            width: 100%;
+            height: 300px;
+            background: #000;
+        }
+        .scan-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 2px;
+            background: #8b5cf6;
+            box-shadow: 0 0 10px #8b5cf6;
+            animation: scan 2s ease-in-out infinite;
+        }
+        @keyframes scan {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+        .btn,
+        .btn-secondary,
+        .file-label,
+        .take-photo-label {
+            display: inline-block;
+            background: linear-gradient(45deg, #a78bfa, #9333ea);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 107, 157, 0.13);
+            padding: 12px 24px;
+            text-align: center;
+            margin-bottom: 0;
+        }
+        .btn:hover,
+        .btn-secondary:hover,
+        .file-label:hover,
+        .take-photo-label:hover {
+            background: linear-gradient(45deg, #7c3aed, #a78bfa);
+            color: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(124, 58, 237, 0.2);
+        }
+        .btn:active,
+        .btn-secondary:active,
+        .file-label:active,
+        .take-photo-label:active {
+            transform: translateY(0);
+        }
+        .btn.red {
+            background: linear-gradient(45deg, #dc3545, #a21caf);
+            color: white;
+        }
+        .btn.red:hover {
+            background: linear-gradient(45deg, #b91c1c, #dc3545);
+            box-shadow: 0 6px 20px rgba(220,53,69,0.4);
+        }
+        .btn-secondary {
+            background: linear-gradient(45deg, #c4b5fd, #a78bfa);
+            color: #222;
+        }
+        .btn-secondary:hover {
+            background: linear-gradient(45deg, #a78bfa, #c4b5fd);
+            color: #8b5cf6;
+        }
+        .backup-buttons {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+        .backup-buttons .btn,
+        .backup-buttons .file-label {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        .file-input {
+            display: none;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #7c3aed;
+        }
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #c4b5fd;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+            background: white;
+        }
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #8b5cf6;
+            box-shadow: 0 0 10px rgba(255, 107, 157, 0.2);
+        }
+        .rating-container {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+        }
+        .star {
+            font-size: 28px;
+            color: #ddd;
+            cursor: pointer;
+            transition: color 0.2s ease;
+            filter: drop-shadow(0 1px 1px #ccc);
+        }
+        .star.active {
+            color: #FFC107;
+            text-shadow: 0 0 3px #FFD700;
+        }
+        .star:hover {
+            color: #FFD700;
+        }
+        .inventory-item {
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border-left: 5px solid #8b5cf6;
+            position: relative;
+        }
+        .inventory-item h3 {
+            color: #7c3aed;
+            margin-bottom: 4px;
+            font-size: 18px;
+        }
+        .inventory-item .barcode-display {
+            color: #444;
+            font-size: 13px;
+            margin-bottom: 8px;
+            background: #f3f3ff;
+            border-radius: 4px;
+            padding: 2px 8px;
+            display: inline-block;
+        }
+        .inventory-item p {
+            margin-bottom: 5px;
+            color: #666;
+        }
+        .inventory-item .quantity {
+            background: #8b5cf6;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 14px;
+            font-weight: bold;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+        .inventory-item .rating {
+            color: #FFC107;
+            font-size: 18px;
+        }
+        .filter-container {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .search-box {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #c4b5fd;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        .search-box:focus {
+            outline: none;
+            border-color: #8b5cf6;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.2);
+        }
+        .no-items {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-style: italic;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+        }
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 400px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .close {
+            float: right;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+        .close:hover {
+            color: #8b5cf6;
+        }
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        #product-image-preview {
+            width: 100%;
+            max-width: 160px;
+            height: auto;
+            max-height: 120px;
+            display: block;
+            margin: 0 auto 10px auto;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            object-fit: contain;
+        }
+        #product-image-upload, #product-take-photo {
+            width: 100%;
+            max-width: 180px;
+            margin: 0 auto;
+            margin-bottom: 10px;
+            display: block;
+        }
+        #product-take-photo {
+            display: none;
+        }
+        #product-image-upload {
+            display: none;
+        }
+        .upload-photo-label,
+        .take-photo-label {
+            margin-bottom: 8px;
+            width: 100%;
+        }
+        .filter-results-info {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-style: italic;
+        }
+        /* New CSS for image modal */
+        .image-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 2000;
+            cursor: pointer;
+        }
+        .image-modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+        .image-modal img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 10px;
+        }
+        .image-modal-close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            color: white;
+            font-size: 30px;
+            cursor: pointer;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2001;
+        }
+        .image-modal-close:hover {
+            background: rgba(0, 0, 0, 0.8);
+        }
+        .inventory-item-image {
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        .inventory-item-image:hover {
+            transform: scale(1.05);
+        }
+        .loading-indicator {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            text-align: center;
+            font-size: 14px;
+        }
+        @media (max-width: 480px) {
+            .container {
+                margin: 0;
+                border-radius: 0;
+            }
+            .nav-tab {
+                font-size: 12px;
+                padding: 12px 8px;
+            }
+            .scanner-container,
+            #scanner-view {
+                height: 220px !important;
+                min-height: 160px;
+            }
+            .backup-buttons {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>My Scent Keeper</h1>
+            <p>Personal Inventory Manager</p>
+        </div>
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="showTab('scanner', event)">📱 Scan</button>
+            <button class="nav-tab" onclick="showTab('inventory', event)">📋 Inventory</button>
+            <button class="nav-tab" onclick="showTab('backup', event)">💾 Backup</button>
+        </div>
+        <!-- Scanner Tab -->
+        <div id="scanner" class="tab-content active">
+            <div class="scanner-container">
+                <div id="scanner-view"></div>
+                <div class="scan-overlay"></div>
+            </div>
+            <div class="backup-buttons" style="flex-direction:column;gap:10px;">
+                <button class="btn" onclick="startScanning()">Start Scanning</button>
+                <button class="btn btn-secondary" onclick="stopScanning()">Stop Scanning</button>
+                <button class="btn btn-secondary" onclick="manualEntry()">Manual Entry</button>
+            </div>
+            <div id="scan-result"></div>
+        </div>
+        <!-- Inventory Tab -->
+        <div id="inventory" class="tab-content">
+            <div class="filter-container">
+                <input type="text" class="search-box" id="search" placeholder="Search products by name, location, notes, or barcode..." oninput="filterInventory()">
+                <select id="location-filter" onchange="filterInventory()">
+                    <option value="">All Locations</option>
+                </select>
+                <div id="filter-results-info" class="filter-results-info"></div>
+            </div>
+            <div id="inventory-list"></div>
+        </div>
+        <!-- Backup Tab -->
+        <div id="backup" class="tab-content">
+            <h3 style="color: #7c3aed; margin-bottom: 20px;">Export & Import Data</h3>
+            <div class="backup-buttons">
+                <button class="btn" onclick="exportToExcel()">📊 Download Excel File</button>
+                <label for="import-file" class="file-label">📁 Import Excel File</label>
+                <input type="file" id="import-file" class="file-input" accept=".xlsx,.xls" onchange="importFromExcel(event)">
+                <button class="btn red" onclick="clearAllData()">🗑️ Clear All Data</button>
+            </div>
+            <p style="margin-top: 15px; color: #666; font-size: 14px;">
+                Export your inventory to Excel for backup, or import a previously saved file to restore your data. 
+                <strong>Now with photos embedded in Excel exports!</strong>
+            </p>
+        </div>
+    </div>
+    <!-- Product Entry Modal -->
+    <div id="product-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h3 id="modal-title" style="color: #7c3aed; margin-bottom: 20px;">Add New Product</h3>
+            <div id="modal-success"></div>
+            <img id="product-image-preview" src="" alt="Product Image" style="display:none;" />
+            <div style="display:flex; flex-direction:row; gap:8px; margin-bottom:12px;">
+                <label for="product-image-upload" class="upload-photo-label btn-secondary" style="cursor:pointer; flex: 1;">📤 Upload Photo</label>
+                <label for="product-take-photo" class="take-photo-label btn-secondary" style="cursor:pointer; flex: 1;">📷 Take Photo</label>
+            </div>
+            <input type="file" accept="image/*" id="product-image-upload" style="display:none;">
+            <input type="file" accept="image/*" capture="environment" id="product-take-photo" style="display:none;">
+            <div class="form-group">
+                <label for="product-name">Product Name:</label>
+                <input type="text" id="product-name" placeholder="e.g., 3 Wick Marshmallow Fireside">
+            </div>
+            <div class="form-group">
+                <label class="barcode-label" for="product-barcode">Barcode:</label>
+                <input type="text" id="product-barcode">
+            </div>
+            <div class="form-group">
+                <label for="product-quantity">Quantity:</label>
+                <input type="number" id="product-quantity" min="1" value="1">
+            </div>
+            <div class="form-group">
+                <label for="product-location">Storage Location:</label>
+                <input type="text" id="product-location" placeholder="e.g., Cabinet 1 shelf 1">
+            </div>
+            <div class="form-group">
+                <label for="product-notes">Notes:</label>
+                <textarea id="product-notes" rows="3" placeholder="Any notes about this product..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Rating (1-5):</label>
+                <div class="rating-container" id="rating-stars">
+                    <span class="star" data-rating="1">★</span>
+                    <span class="star" data-rating="2">★</span>
+                    <span class="star" data-rating="3">★</span>
+                    <span class="star" data-rating="4">★</span>
+                    <span class="star" data-rating="5">★</span>
+                </div>
+            </div>
+            <input type="hidden" id="editing-index">
+            <button class="btn" onclick="saveProduct()">💾 Save Product</button>
+        </div>
+    </div>
+    
+    <!-- Image Modal -->
+    <div id="image-modal" class="image-modal" onclick="closeImageModal()">
+        <div class="image-modal-close" onclick="closeImageModal()">&times;</div>
+        <div class="image-modal-content">
+            <img id="image-modal-img" src="" alt="Product Image">
+        </div>
+    </div>
+
+    <script>
+        let inventory = [];
+        let isScanning = false;
+        let currentRating = 0;
+        let scannedBarcode = '';
+        let currentFilteredInventory = [];
+        let db;
+
+        // Initialize IndexedDB
+        async function initDB() {
+            if (db) return db;
+            
+            try {
+                db = await idb.openDB('MyScentKeeperDB', 1, {
+                    upgrade(db) {
+                        // Products store
+                        const productStore = db.createObjectStore('products', {
+                            keyPath: 'id',
+                            autoIncrement: true
+                        });
+                        productStore.createIndex('barcode', 'barcode', { unique: false });
+                        productStore.createIndex('name', 'name', { unique: false });
+                        
+                        // Images store
+                        const imageStore = db.createObjectStore('images', {
+                            keyPath: 'productId'
+                        });
+                    }
+                });
+                console.log('IndexedDB initialized successfully');
+                return db;
+            } catch (error) {
+                console.error('Failed to initialize IndexedDB:', error);
+                // Fallback to localStorage mode
+                return null;
+            }
+        }
+
+        // Initialize the app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', async function() {
+            await initDB();
+            await loadInventory();
+            initializeEventListeners();
+        });
+
+        // Initialize event listeners
+        function initializeEventListeners() {
+            // Star rating event listeners
+            document.querySelectorAll('#rating-stars .star').forEach(star => {
+                star.addEventListener('click', function() {
+                    const rating = parseInt(this.dataset.rating);
+                    setRating(rating);
+                });
+            });
+
+            // Image upload event listeners - Fixed with proper file handling
+            const uploadInput = document.getElementById('product-image-upload');
+            const takePhotoInput = document.getElementById('product-take-photo');
+            
+            uploadInput.addEventListener('change', function(e) {
+                console.log('Upload photo file selected:', e.target.files[0]);
+                if (e.target.files && e.target.files[0]) {
+                    handleImageUpload(e.target.files[0]);
+                }
+            });
+
+            takePhotoInput.addEventListener('change', function(e) {
+                console.log('Take photo file selected:', e.target.files[0]);
+                if (e.target.files && e.target.files[0]) {
+                    handleImageUpload(e.target.files[0]);
+                }
+            });
+
+            // Modal click outside to close
+            document.getElementById('product-modal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeModal();
+                }
+            });
+        }
+
+        // New function to open image modal
+        function openImageModal(imageSrc) {
+            const modal = document.getElementById('image-modal');
+            const modalImg = document.getElementById('image-modal-img');
+            modalImg.src = imageSrc;
+            modal.style.display = 'block';
+        }
+
+        // New function to close image modal
+        function closeImageModal() {
+            const modal = document.getElementById('image-modal');
+            modal.style.display = 'none';
+        }
+
+        // Load inventory from IndexedDB
+        async function loadInventory() {
+            try {
+                const database = await initDB();
+                if (!database) {
+                    // Fallback to localStorage
+                    const saved = localStorage.getItem('bbw_inventory');
+                    if (saved) {
+                        inventory = JSON.parse(saved);
+                        console.log('Loaded inventory from localStorage:', inventory.length, 'items');
+                    }
+                } else {
+                    // Load from IndexedDB
+                    const products = await database.getAll('products');
+                    inventory = products || [];
+                    console.log('Loaded inventory from IndexedDB:', inventory.length, 'items');
+                }
+            } catch (error) {
+                console.error('Error loading inventory:', error);
+                inventory = [];
+            }
+            
+            updateInventoryDisplay();
+            updateLocationFilter();
+        }
+
+        // Save inventory to IndexedDB
+        async function saveInventory() {
+            try {
+                const database = await initDB();
+                if (!database) {
+                    // Fallback to localStorage
+                    localStorage.setItem('bbw_inventory', JSON.stringify(inventory));
+                    console.log('Saved inventory to localStorage:', inventory.length, 'items');
+                } else {
+                    // Clear existing products and save new ones
+                    const tx = database.transaction('products', 'readwrite');
+                    await tx.store.clear();
+                    
+                    for (const product of inventory) {
+                        await tx.store.add(product);
+                    }
+                    await tx.done;
+                    console.log('Saved inventory to IndexedDB:', inventory.length, 'items');
+                }
+            } catch (error) {
+                console.error('Error saving inventory:', error);
+            }
+            
+            updateInventoryDisplay();
+            updateLocationFilter();
+        }
+
+        // Save image to IndexedDB
+        async function saveProductImage(productId, imageData) {
+            try {
+                const database = await initDB();
+                if (database && imageData) {
+                    await database.put('images', {
+                        productId: productId,
+                        data: imageData
+                    });
+                    console.log('Saved image for product', productId);
+                }
+            } catch (error) {
+                console.error('Error saving image:', error);
+            }
+        }
+
+        // Load image from IndexedDB
+        async function loadProductImage(productId) {
+            try {
+                const database = await initDB();
+                if (database) {
+                    const imageRecord = await database.get('images', productId);
+                    return imageRecord?.data || null;
+                }
+                return null;
+            } catch (error) {
+                console.error('Error loading image:', error);
+                return null;
+            }
+        }
+
+        function showTab(tabName, event) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            // Remove active class from all nav tabs
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            const selectedTab = document.getElementById(tabName);
+            if (selectedTab) {
+                selectedTab.classList.add('active');
+            }
+            
+            // Add active class to clicked nav tab
+            if (event && event.target) {
+                event.target.classList.add('active');
+            }
+            
+            // Force update inventory when switching to inventory tab
+            if (tabName === 'inventory') {
+                console.log('Switching to inventory tab, forcing update...');
+                setTimeout(() => {
+                    updateInventoryDisplay();
+                }, 100);
+            }
+        }
+
+        function startScanning() {
+            if (isScanning) return;
+            isScanning = true;
+            document.getElementById('scanner-view').innerHTML = '';
+            
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: document.querySelector('#scanner-view'),
+                    constraints: {
+                        width: 400,
+                        height: 300,
+                        facingMode: "environment"
+                    }
+                },
+                locator: {
+                    patchSize: "medium",
+                    halfSample: true
+                },
+                numOfWorkers: 2,
+                decoder: {
+                    readers: ["code_128_reader", "ean_reader", "ean_8_reader"]
+                },
+                locate: true
+            }, function(err) {
+                if (err) {
+                    alert('Camera access denied or not available. Please try manual entry.');
+                    isScanning = false;
+                    return;
+                }
+                Quagga.start();
+            });
+
+            Quagga.onDetected(async function(data) {
+                const code = data.codeResult.code;
+                stopScanning();
+                scannedBarcode = code;
+                
+                const matches = inventory.filter(item => item.barcode === code);
+                
+                if (matches.length > 0) {
+                    let html = `<div class="success-message">
+                        <div>Barcode: <span class="barcode-display">${code}</span></div>
+                        <div>Product already in inventory:</div>
+                    </div>`;
+                    
+                    for (const item of matches) {
+                        const image = await loadProductImage(item.id) || item.image;
+                        html += `
+                            <div class="inventory-item">
+                                ${image ? `<img src="${image}" alt="Product Image" style="max-width:70px; float:right; margin-left:10px; border-radius:6px;">` : ''}
+                                <h3>${item.name}</h3>
+                                <span class="barcode-display">${item.barcode}</span>
+                                <div class="quantity">Quantity: ${item.quantity}</div>
+                                <p><strong>Location:</strong> ${item.location}</p>
+                                <p><strong>Rating:</strong> <span class="rating">${'★'.repeat(item.rating)}${'☆'.repeat(5-item.rating)}</span> (${item.rating}/5)</p>
+                                ${item.notes ? `<p><strong>Notes:</strong> ${item.notes}</p>` : ''}
+                                <p style="font-size: 12px; color: #999;"><strong>Added:</strong> ${new Date(item.dateAdded).toLocaleDateString()}</p>
+                                <button class="btn btn-secondary" onclick="editProduct(${inventory.indexOf(item)})" style="margin-top: 10px; padding: 8px 16px; font-size: 14px;">Edit Product</button>
+                            </div>
+                        `;
+                    }
+                    
+                    html += `<button class="btn" onclick="openProductModal('${code}', -1)">Create New</button>`;
+                    document.getElementById('scan-result').innerHTML = html;
+                } else {
+                    let html = `
+                        <div class="success-message">
+                            <div>Barcode: <span class="barcode-display">${code}</span></div>
+                            New product detected! Click below to add it to your inventory.
+                        </div>
+                        <button class="btn" onclick="openProductModal('${code}', -1)">Add Product</button>
+                    `;
+                    document.getElementById('scan-result').innerHTML = html;
+                }
+            });
+        }
+
+        function stopScanning() {
+            if (!isScanning) return;
+            isScanning = false;
+            Quagga.stop();
+            document.getElementById('scanner-view').innerHTML = '';
+        }
+
+        function manualEntry() {
+            scannedBarcode = '';
+            openProductModal('');
+        }
+
+        async function openProductModal(barcode = '', editIndex = -1) {
+            const modal = document.getElementById('product-modal');
+            const isEditing = editIndex >= 0;
+            const imagePreview = document.getElementById('product-image-preview');
+            const barcodeField = document.getElementById('product-barcode');
+            
+            // Reset file inputs properly
+            const uploadInput = document.getElementById('product-image-upload');
+            const takePhotoInput = document.getElementById('product-take-photo');
+            uploadInput.value = '';
+            takePhotoInput.value = '';
+            
+            if (isEditing) {
+                const product = inventory[editIndex];
+                document.getElementById('modal-title').textContent = 'Edit Product';
+                document.getElementById('product-name').value = product.name;
+                barcodeField.value = product.barcode;
+                document.getElementById('product-quantity').value = product.quantity;
+                document.getElementById('product-location').value = product.location;
+                document.getElementById('product-notes').value = product.notes || '';
+                document.getElementById('editing-index').value = editIndex;
+                setRating(product.rating);
+                
+                // Load image from IndexedDB or fallback to stored image
+                const image = await loadProductImage(product.id) || product.image;
+                if (image && image.trim() !== '') {
+                    imagePreview.src = image;
+                    imagePreview.style.display = 'block';
+                } else {
+                    imagePreview.src = '';
+                    imagePreview.style.display = 'none';
+                }
+            } else {
+                document.getElementById('modal-title').textContent = 'Add New Product';
+                document.getElementById('product-name').value = '';
+                barcodeField.value = barcode || scannedBarcode || '';
+                document.getElementById('product-quantity').value = 1;
+                document.getElementById('product-location').value = '';
+                document.getElementById('product-notes').value = '';
+                document.getElementById('editing-index').value = -1;
+                setRating(0);
+                imagePreview.src = '';
+                imagePreview.style.display = 'none';
+            }
+            
+            document.getElementById('modal-success').innerHTML = '';
+            modal.style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('product-modal').style.display = 'none';
+        }
+
+        function editProduct(index) {
+            const product = inventory[index];
+            openProductModal(product.barcode, index);
+        }
+
+        function setRating(rating) {
+            currentRating = rating;
+            const stars = document.querySelectorAll('#rating-stars .star');
+            stars.forEach((star, index) => {
+                star.classList.toggle('active', index < rating);
+            });
+        }
+
+        function handleImageUpload(file) {
+            console.log('handleImageUpload called with file:', file);
+            
+            if (!file) {
+                console.log('No file provided');
+                return;
+            }
+            
+            console.log('File details:', {
+                name: file.name,
+                size: file.size,
+                type: file.type
+            });
+
+            // Check file type
+            if (!file.type.startsWith('image/')) {
+                alert('Please select a valid image file.');
+                return;
+            }
+
+            // Increased file size limit to 50MB since we're using IndexedDB now
+            if (file.size > 50 * 1024 * 1024) {
+                alert('Image file is too large. Please select an image smaller than 50MB.');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                console.log('FileReader onload triggered');
+                const imagePreview = document.getElementById('product-image-preview');
+                const dataUrl = e.target.result;
+                
+                // Compress image if it's larger than 10MB
+                if (file.size > 10 * 1024 * 1024) {
+                    compressImage(dataUrl, (compressedDataUrl) => {
+                        imagePreview.src = compressedDataUrl;
+                        imagePreview.style.display = 'block';
+                        console.log('Large image compressed and preview updated');
+                    });
+                } else {
+                    // Use original for smaller files
+                    imagePreview.src = dataUrl;
+                    imagePreview.style.display = 'block';
+                    console.log('Image preview updated successfully');
+                }
+            };
+            reader.onerror = function(e) {
+                console.error('FileReader error:', e);
+                alert('Error reading image file. Please try again.');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Function to compress images
+        function compressImage(dataUrl, callback) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            
+            img.onload = function() {
+                // Calculate new dimensions (max 1200px width/height for larger files)
+                const maxSize = 1200;
+                let { width, height } = img;
+                
+                if (width > height) {
+                    if (width > maxSize) {
+                        height = height * (maxSize / width);
+                        width = maxSize;
+                    }
+                } else {
+                    if (height > maxSize) {
+                        width = width * (maxSize / height);
+                        height = maxSize;
+                    }
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                // Draw and compress
+                ctx.drawImage(img, 0, 0, width, height);
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                callback(compressedDataUrl);
+            };
+            
+            img.src = dataUrl;
+        }
+
+        async function saveProduct() {
+            const name = document.getElementById('product-name').value.trim();
+            const barcode = document.getElementById('product-barcode').value.trim();
+            const quantity = parseInt(document.getElementById('product-quantity').value);
+            const location = document.getElementById('product-location').value.trim();
+            const notes = document.getElementById('product-notes').value.trim();
+            const editIndex = parseInt(document.getElementById('editing-index').value);
+            const imagePreview = document.getElementById('product-image-preview');
+            const imageData = imagePreview.src && imagePreview.src !== '' ? imagePreview.src : '';
+
+            if (!name) {
+                alert('Please enter a product name.');
+                return;
+            }
+
+            const product = {
+                name,
+                barcode: barcode || '',
+                quantity: quantity || 1,
+                location: location || '',
+                notes: notes || '',
+                rating: currentRating,
+                dateAdded: editIndex >= 0 ? inventory[editIndex].dateAdded : new Date().toISOString(),
+                image: imageData // Store image data in the product object for Excel export
+            };
+
+            if (editIndex >= 0) {
+                // Editing existing product
+                product.id = inventory[editIndex].id;
+                inventory[editIndex] = product;
+                
+                // Save image separately in IndexedDB
+                if (imageData) {
+                    await saveProductImage(product.id, imageData);
+                }
+                
+                document.getElementById('modal-success').innerHTML = 
+                    '<div class="success-message">Product updated successfully!</div>';
+            } else {
+                // Adding new product
+                product.id = Date.now() + Math.random(); // Generate unique ID
+                inventory.push(product);
+                
+                // Save image separately in IndexedDB
+                if (imageData) {
+                    await saveProductImage(product.id, imageData);
+                }
+                
+                document.getElementById('modal-success').innerHTML = 
+                    '<div class="success-message">Product added successfully!</div>';
+            }
+
+            await saveInventory();
+
+            // Clear form but keep modal open with success message
+            setTimeout(() => {
+                closeModal();
+            }, 1500);
+        }
+
+        async function updateInventoryDisplay() {
+            const container = document.getElementById('inventory-list');
+            
+            if (inventory.length === 0) {
+                container.innerHTML = '<div class="no-items">No products in inventory yet. Start by scanning a barcode!</div>';
+                return;
+            }
+
+            let html = '';
+            
+            // Use filtered inventory if we have one, otherwise use full inventory
+            const itemsToShow = currentFilteredInventory.length > 0 ? currentFilteredInventory : inventory;
+            
+            for (const item of itemsToShow) {
+                const image = await loadProductImage(item.id) || item.image;
+                html += `
+                    <div class="inventory-item">
+                        ${image ? `<img src="${image}" alt="Product Image" class="inventory-item-image" style="max-width:70px; float:right; margin-left:10px; border-radius:6px;" onclick="openImageModal('${image}')">` : ''}
+                        <h3>${item.name}</h3>
+                        <span class="barcode-display">${item.barcode || 'No barcode'}</span>
+                        <div class="quantity">Quantity: ${item.quantity}</div>
+                        <p><strong>Location:</strong> ${item.location || 'Not specified'}</p>
+                        <p><strong>Rating:</strong> <span class="rating">${'★'.repeat(item.rating)}${'☆'.repeat(5-item.rating)}</span> (${item.rating}/5)</p>
+                        ${item.notes ? `<p><strong>Notes:</strong> ${item.notes}</p>` : ''}
+                        <p style="font-size: 12px; color: #999;"><strong>Added:</strong> ${new Date(item.dateAdded).toLocaleDateString()}</p>
+                        <div style="margin-top: 10px;">
+                            <button class="btn btn-secondary" onclick="editProduct(${inventory.indexOf(item)})" style="margin-right: 10px; padding: 8px 16px; font-size: 14px;">Edit</button>
+                            <button class="btn red" onclick="deleteProduct(${inventory.indexOf(item)})" style="padding: 8px 16px; font-size: 14px;">Delete</button>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+        }
+
+        async function deleteProduct(index) {
+            if (confirm('Are you sure you want to delete this product?')) {
+                const productId = inventory[index].id;
+                
+                // Remove image from IndexedDB
+                try {
+                    const database = await initDB();
+                    if (database) {
+                        await database.delete('images', productId);
+                    }
+                } catch (error) {
+                    console.error('Error deleting image:', error);
+                }
+                
+                inventory.splice(index, 1);
+                await saveInventory();
+                updateInventoryDisplay();
+            }
+        }
+
+        function updateLocationFilter() {
+            const locations = [...new Set(inventory.map(item => item.location).filter(loc => loc))];
+            const filter = document.getElementById('location-filter');
+            
+            // Keep current selection
+            const currentValue = filter.value;
+            
+            filter.innerHTML = '<option value="">All Locations</option>';
+            locations.forEach(location => {
+                const option = document.createElement('option');
+                option.value = location;
+                option.textContent = location;
+                filter.appendChild(option);
+            });
+            
+            // Restore selection if it still exists
+            if (locations.includes(currentValue)) {
+                filter.value = currentValue;
+            }
+        }
+
+        function filterInventory() {
+            const searchTerm = document.getElementById('search').value.toLowerCase();
+            const locationFilter = document.getElementById('location-filter').value;
+            const resultsInfo = document.getElementById('filter-results-info');
+            
+            currentFilteredInventory = inventory.filter(item => {
+                const matchesSearch = !searchTerm || 
+                    item.name.toLowerCase().includes(searchTerm) ||
+                    item.location.toLowerCase().includes(searchTerm) ||
+                    (item.notes && item.notes.toLowerCase().includes(searchTerm)) ||
+                    (item.barcode && item.barcode.includes(searchTerm));
+                
+                const matchesLocation = !locationFilter || item.location === locationFilter;
+                
+                return matchesSearch && matchesLocation;
+            });
+            
+            // Update results info
+            if (searchTerm || locationFilter) {
+                resultsInfo.textContent = `Showing ${currentFilteredInventory.length} of ${inventory.length} products`;
+                resultsInfo.style.display = 'block';
+            } else {
+                resultsInfo.style.display = 'none';
+                currentFilteredInventory = inventory; // Reset to show all
+            }
+            
+            updateInventoryDisplay();
+        }
+
+        async function exportToExcel() {
+            if (inventory.length === 0) {
+                alert('No inventory to export.');
+                return;
+            }
+
+            try {
+                // Show loading indicator
+                const loadingDiv = document.createElement('div');
+                loadingDiv.className = 'loading-indicator';
+                loadingDiv.textContent = 'Preparing Excel file with images...';
+                document.body.appendChild(loadingDiv);
+
+                // Create workbook and worksheet
+                const wb = XLSX.utils.book_new();
+                
+                // Prepare data with images for export
+                const exportData = [];
+                for (const item of inventory) {
+                    // Get image data from IndexedDB or fallback to stored image
+                    const imageData = await loadProductImage(item.id) || item.image;
+                    
+                    exportData.push({
+                        'Product Name': item.name,
+                        'Barcode': item.barcode || '',
+                        'Quantity': item.quantity,
+                        'Storage Location': item.location || '',
+                        'Rating': item.rating,
+                        'Notes': item.notes || '',
+                        'Date Added': new Date(item.dateAdded).toLocaleDateString(),
+                        'Product ID': item.id,
+                        'Image Data': imageData || '' // Include base64 image data
+                    });
+                }
+
+                const ws = XLSX.utils.json_to_sheet(exportData);
+                
+                // Set column widths
+                ws['!cols'] = [
+                    { wch: 25 }, // Product Name
+                    { wch: 15 }, // Barcode
+                    { wch: 10 }, // Quantity
+                    { wch: 20 }, // Storage Location
+                    { wch: 10 }, // Rating
+                    { wch: 30 }, // Notes
+                    { wch: 12 }, // Date Added
+                    { wch: 15 }, // Product ID
+                    { wch: 10 }  // Image Data (hidden but present)
+                ];
+
+                XLSX.utils.book_append_sheet(wb, ws, "My Scent Keeper Inventory");
+                
+                // Generate filename with timestamp
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+                const filename = `My_Scent_Keeper_Backup_${timestamp}.xlsx`;
+                
+                // Write and download file
+                XLSX.writeFile(wb, filename);
+                
+                // Remove loading indicator
+                document.body.removeChild(loadingDiv);
+                
+                alert(`Inventory exported successfully as ${filename}!\n\nTotal items: ${inventory.length}\nImages included: ${exportData.filter(item => item['Image Data']).length}`);
+            } catch (error) {
+                console.error('Export error:', error);
+                // Remove loading indicator if it exists
+                const loadingDiv = document.querySelector('.loading-indicator');
+                if (loadingDiv) {
+                    document.body.removeChild(loadingDiv);
+                }
+                alert('Error exporting data. Please try again.');
+            }
+        }
+
+        async function importFromExcel(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            try {
+                // Show loading indicator
+                const loadingDiv = document.createElement('div');
+                loadingDiv.className = 'loading-indicator';
+                loadingDiv.textContent = 'Importing data and restoring images...';
+                document.body.appendChild(loadingDiv);
+
+                const data = await file.arrayBuffer();
+                const workbook = XLSX.read(data, { type: 'array' });
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                if (jsonData.length === 0) {
+                    alert('No data found in the Excel file.');
+                    document.body.removeChild(loadingDiv);
+                    return;
+                }
+
+                if (!confirm(`This will replace your current inventory with ${jsonData.length} items from the backup file. Continue?`)) {
+                    document.body.removeChild(loadingDiv);
+                    return;
+                }
+
+                // Clear current data
+                await clearAllData(false); // Don't show confirmation again
+
+                // Import data
+                const database = await initDB();
+                let importedCount = 0;
+                let imagesRestoredCount = 0;
+
+                for (const row of jsonData) {
+                    try {
+                        // Create product object with original ID if available
+                        const product = {
+                            id: row['Product ID'] || (Date.now() + Math.random()),
+                            name: row['Product Name'] || '',
+                            barcode: row['Barcode'] || '',
+                            quantity: parseInt(row['Quantity']) || 1,
+                            location: row['Storage Location'] || '',
+                            rating: parseInt(row['Rating']) || 0,
+                            notes: row['Notes'] || '',
+                            dateAdded: row['Date Added'] ? new Date(row['Date Added']).toISOString() : new Date().toISOString(),
+                            image: row['Image Data'] || '' // Keep image data for display
+                        };
+
+                        // Validate required fields
+                        if (!product.name) {
+                            console.warn('Skipping row with missing product name');
+                            continue;
+                        }
+
+                        inventory.push(product);
+                        importedCount++;
+
+                        // Restore image to IndexedDB if available
+                        if (row['Image Data'] && row['Image Data'].trim() !== '') {
+                            try {
+                                await saveProductImage(product.id, row['Image Data']);
+                                imagesRestoredCount++;
+                            } catch (imageError) {
+                                console.error('Error restoring image for product:', product.name, imageError);
+                            }
+                        }
+                    } catch (rowError) {
+                        console.error('Error processing row:', row, rowError);
+                    }
+                }
+
+                // Save all imported data
+                await saveInventory();
+
+                // Remove loading indicator
+                document.body.removeChild(loadingDiv);
+
+                // Clear file input
+                event.target.value = '';
+
+                alert(`Import successful!\n\nProducts imported: ${importedCount}\nImages restored: ${imagesRestoredCount}\n\nYour inventory has been restored from the backup file.`);
+
+            } catch (error) {
+                console.error('Import error:', error);
+                
+                // Remove loading indicator if it exists
+                const loadingDiv = document.querySelector('.loading-indicator');
+                if (loadingDiv) {
+                    document.body.removeChild(loadingDiv);
+                }
+                
+                alert('Error importing data. Please make sure you selected a valid My Scent Keeper backup file.');
+            }
+        }
+
+        async function clearAllData(showConfirmation = true) {
+            if (showConfirmation && !confirm('Are you sure you want to clear all inventory data? This cannot be undone!')) {
+                return;
+            }
+
+            try {
+                // Clear IndexedDB
+                const database = await initDB();
+                if (database) {
+                    const tx = database.transaction(['products', 'images'], 'readwrite');
+                    await tx.objectStore('products').clear();
+                    await tx.objectStore('images').clear();
+                    await tx.done;
+                }
+
+                // Clear localStorage as fallback
+                localStorage.removeItem('bbw_inventory');
+
+                // Clear memory
+                inventory = [];
+                currentFilteredInventory = [];
+
+                // Update UI
+                updateInventoryDisplay();
+                updateLocationFilter();
+
+                if (showConfirmation) {
+                    alert('All data cleared successfully.');
+                }
+            } catch (error) {
+                console.error('Error clearing data:', error);
+                if (showConfirmation) {
+                    alert('Error clearing data. Please try again.');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
