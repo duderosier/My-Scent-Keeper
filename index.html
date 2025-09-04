@@ -120,6 +120,134 @@
             0%, 100% { opacity: 0.3; }
             50% { opacity: 1; }
         }
+        
+        /* Enhanced scanning guidance styles */
+        .scan-guidance {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            z-index: 10;
+            min-width: 200px;
+            text-align: center;
+        }
+        
+        .scan-progress {
+            margin-top: 8px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .progress-bar-scan {
+            height: 100%;
+            background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+            width: 0%;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+        
+        /* Flashlight button styles */
+        .flashlight-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.7);
+            border: none;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 15;
+            transition: all 0.3s ease;
+        }
+        
+        .flashlight-btn:hover {
+            background: rgba(0, 0, 0, 0.9);
+            transform: scale(1.1);
+        }
+        
+        .flashlight-btn.active {
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+        }
+        
+        /* Success animation styles */
+        @keyframes scanSuccess {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .scan-success {
+            animation: scanSuccess 0.6s ease-in-out;
+        }
+        
+        .success-pulse {
+            border: 3px solid #10b981;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+            animation: successPulse 0.8s ease-in-out;
+        }
+        
+        @keyframes successPulse {
+            0% { box-shadow: 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 rgba(16, 185, 129, 0); }
+        }
+        
+        /* Scanner settings styles */
+        .scanner-settings {
+            margin-top: 15px;
+            border-top: 1px solid #e0e0e0;
+            padding-top: 15px;
+        }
+        
+        .scanner-settings details {
+            background: rgba(139, 92, 246, 0.1);
+            border-radius: 8px;
+            padding: 10px;
+        }
+        
+        .scanner-settings summary {
+            cursor: pointer;
+            font-weight: bold;
+            color: #7c3aed;
+            margin-bottom: 5px;
+        }
+        
+        .settings-content {
+            margin-top: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+        }
+        
+        .settings-content label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .settings-content select {
+            margin-left: 10px;
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .settings-content small {
+            display: block;
+            color: #666;
+            font-style: italic;
+            margin-top: 5px;
+        }
         .btn,
         .btn-secondary,
         .file-label,
@@ -487,11 +615,40 @@
             <div class="scanner-container">
                 <div id="scanner-view"></div>
                 <div class="scan-overlay"></div>
+                <!-- Enhanced scanning guidance -->
+                <div id="scan-guidance" class="scan-guidance">
+                    <div id="guidance-text">Position barcode within the scanning area</div>
+                    <div id="scan-progress" class="scan-progress">
+                        <div id="progress-bar" class="progress-bar-scan"></div>
+                    </div>
+                </div>
+                <!-- Flashlight toggle -->
+                <button id="flashlight-toggle" class="flashlight-btn" onclick="toggleFlashlight()" style="display: none;">
+                    🔦
+                </button>
             </div>
             <div class="backup-buttons" style="flex-direction:column;gap:10px;">
                 <button class="btn" onclick="startScanning()">Start Scanning</button>
                 <button class="btn btn-secondary" onclick="stopScanning()">Stop Scanning</button>
                 <button class="btn btn-secondary" onclick="manualEntry()">Manual Entry</button>
+            </div>
+            <!-- Scanner Settings -->
+            <div class="scanner-settings">
+                <details>
+                    <summary>⚙️ Scanner Settings</summary>
+                    <div class="settings-content">
+                        <label>
+                            Confirmation Reads: 
+                            <select id="confirmation-threshold" onchange="updateConfirmationThreshold(this.value)">
+                                <option value="1">1 (Fast)</option>
+                                <option value="2">2 (Balanced)</option>
+                                <option value="3" selected>3 (Stable)</option>
+                                <option value="5">5 (Very Stable)</option>
+                            </select>
+                        </label>
+                        <small>Higher values reduce false reads but take longer to confirm.</small>
+                    </div>
+                </details>
             </div>
             <div id="scan-result"></div>
         </div>
@@ -587,6 +744,12 @@
         let scannedBarcode = '';
         let currentFilteredInventory = [];
         let db;
+        
+        // Enhanced scanning variables
+        let scanConfirmations = {};
+        let scanningGuidanceInterval;
+        let scanConfirmationThreshold = 3;
+        let isFlashlightOn = false;
 
         // Initialize IndexedDB
         async function initDB() {
@@ -792,34 +955,69 @@
         function startScanning() {
             if (isScanning) return;
             isScanning = true;
-            document.getElementById('scanner-view').innerHTML = '';
             
+            // Clear any previous scan data
+            scanConfirmations = {};
+            document.getElementById('scanner-view').innerHTML = '';
+            document.getElementById('scan-result').innerHTML = '';
+            
+            // Show scanning guidance
+            const guidance = document.getElementById('scan-guidance');
+            if (guidance) {
+                guidance.style.display = 'block';
+                updateGuidanceText('Initializing camera...');
+            }
+            
+            // Enhanced Quagga configuration
             Quagga.init({
                 inputStream: {
                     name: "Live",
                     type: "LiveStream",
                     target: document.querySelector('#scanner-view'),
                     constraints: {
-                        width: 400,
-                        height: 300,
-                        facingMode: "environment"
+                        width: { min: 400, ideal: 800, max: 1920 },
+                        height: { min: 300, ideal: 600, max: 1080 },
+                        facingMode: "environment",
+                        aspectRatio: { min: 1, max: 2 }
                     }
                 },
                 locator: {
-                    patchSize: "medium",
+                    patchSize: "large",
                     halfSample: true
                 },
-                numOfWorkers: 2,
+                numOfWorkers: navigator.hardwareConcurrency || 4,
                 decoder: {
-                    readers: ["code_128_reader", "ean_reader", "ean_8_reader"]
+                    readers: [
+                        "code_128_reader", 
+                        "ean_reader", 
+                        "ean_8_reader",
+                        "code_39_reader",
+                        "codabar_reader"
+                    ],
+                    debug: {
+                        drawBoundingBox: false,
+                        showFrequency: false,
+                        drawScanline: false,
+                        showPattern: false
+                    }
                 },
-                locate: true
+                locate: true,
+                frequency: 10,
+                area: {
+                    top: "20%",
+                    right: "10%",
+                    left: "10%",
+                    bottom: "20%"
+                }
             }, function(err) {
                 if (err) {
+                    console.error('Quagga initialization error:', err);
                     alert('Camera access denied or not available. Please try manual entry.');
                     isScanning = false;
+                    hideGuidance();
                     return;
                 }
+                
                 Quagga.start();
                 
                 // Set video attributes for better mobile support, especially iOS
@@ -829,60 +1027,272 @@
                         video.setAttribute('playsinline', 'true');
                         video.setAttribute('webkit-playsinline', 'true');
                         video.muted = true;
+                        
+                        // Check for flashlight support
+                        checkFlashlightSupport(video);
                     }
+                    
+                    updateGuidanceText('Position barcode within the scanning area');
+                    startGuidanceAnimation();
                 }, 100);
             });
 
+            // Enhanced detection with multi-read confirmation
             Quagga.onDetected(async function(data) {
+                if (!isScanning) return; // Ignore if scanning was stopped
+                
                 const code = data.codeResult.code;
-                stopScanning();
-                scannedBarcode = code;
+                const quality = data.codeResult.quality || 0;
                 
-                const matches = inventory.filter(item => item.barcode === code);
+                // Validate barcode format
+                if (!code || code.length < 6) {
+                    console.log('Invalid barcode format, skipping');
+                    return;
+                }
                 
-                if (matches.length > 0) {
-                    let html = `<div class="success-message">
-                        <div>Barcode: <span class="barcode-display">${code}</span></div>
-                        <div>Product already in inventory:</div>
-                    </div>`;
-                    
-                    for (const item of matches) {
-                        const image = await loadProductImage(item.id) || item.image;
-                        html += `
-                            <div class="inventory-item">
-                                ${image ? `<img src="${image}" alt="Product Image" style="max-width:70px; float:right; margin-left:10px; border-radius:6px;">` : ''}
-                                <h3>${item.name}</h3>
-                                <span class="barcode-display">${item.barcode}</span>
-                                <div class="quantity">Quantity: ${item.quantity}</div>
-                                <p><strong>Location:</strong> ${item.location}</p>
-                                <p><strong>Rating:</strong> <span class="rating">${'★'.repeat(item.rating)}${'☆'.repeat(5-item.rating)}</span> (${item.rating}/5)</p>
-                                ${item.notes ? `<p><strong>Notes:</strong> ${item.notes}</p>` : ''}
-                                <p style="font-size: 12px; color: #999;"><strong>Added:</strong> ${new Date(item.dateAdded).toLocaleDateString()}</p>
-                                <button class="btn btn-secondary" onclick="editProduct(${inventory.indexOf(item)})" style="margin-top: 10px; padding: 8px 16px; font-size: 14px;">Edit Product</button>
-                            </div>
-                        `;
+                // Only process high-quality reads
+                if (quality < 50) return;
+                
+                // Initialize confirmation tracking for this code
+                if (!scanConfirmations[code]) {
+                    scanConfirmations[code] = {
+                        count: 0,
+                        firstDetected: Date.now(),
+                        qualities: []
+                    };
+                }
+                
+                scanConfirmations[code].count++;
+                scanConfirmations[code].qualities.push(quality);
+                
+                // Clean up old confirmations (older than 5 seconds)
+                const now = Date.now();
+                Object.keys(scanConfirmations).forEach(key => {
+                    if (now - scanConfirmations[key].firstDetected > 5000) {
+                        delete scanConfirmations[key];
                     }
+                });
+                
+                // Update progress indication
+                const progress = Math.min((scanConfirmations[code].count / scanConfirmationThreshold) * 100, 100);
+                updateScanProgress(progress);
+                
+                if (progress < 100) {
+                    updateGuidanceText(`Reading barcode... ${scanConfirmations[code].count}/${scanConfirmationThreshold}`);
                     
-                    html += `<button class="btn" onclick="openProductModal('${code}', -1)">Create New</button>`;
-                    document.getElementById('scan-result').innerHTML = html;
-                } else {
-                    let html = `
-                        <div class="success-message">
-                            <div>Barcode: <span class="barcode-display">${code}</span></div>
-                            New product detected! Click below to add it to your inventory.
-                        </div>
-                        <button class="btn" onclick="openProductModal('${code}', -1)">Add Product</button>
-                    `;
-                    document.getElementById('scan-result').innerHTML = html;
+                    // Provide audio feedback for progress
+                    try {
+                        const audio = new Audio('data:audio/wav;base64,UklGRpoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBjqVzoTaKCMF');
+                        audio.volume = 0.1;
+                        audio.play().catch(() => {}); // Ignore errors if audio can't play
+                    } catch (error) {
+                        // Audio not supported, continue silently
+                    }
+                    return;
+                }
+                
+                // Confirmed scan - process the result
+                await processConfirmedScan(code);
+            });
+            
+            // Add processing event for real-time feedback
+            Quagga.onProcessed(function(result) {
+                if (result && result.boxes) {
+                    // Visual feedback for detected patterns
+                    const hasGoodPatterns = result.boxes.some(box => box.confidence && box.confidence > 0.7);
+                    if (hasGoodPatterns) {
+                        updateGuidanceText('Hold steady, reading barcode...');
+                    }
                 }
             });
         }
 
         function stopScanning() {
             if (!isScanning) return;
+            
             isScanning = false;
-            Quagga.stop();
+            scanConfirmations = {};
+            
+            // Stop Quagga
+            try {
+                Quagga.stop();
+                Quagga.offDetected();
+                Quagga.offProcessed();
+            } catch (error) {
+                console.warn('Error stopping Quagga:', error);
+            }
+            
+            // Clean up UI
             document.getElementById('scanner-view').innerHTML = '';
+            hideGuidance();
+            stopGuidanceAnimation();
+            
+            // Turn off flashlight if it was on
+            if (isFlashlightOn) {
+                toggleFlashlight();
+            }
+        }
+        
+        // Helper functions for enhanced scanning
+        function updateGuidanceText(text) {
+            const guidanceText = document.getElementById('guidance-text');
+            if (guidanceText) {
+                guidanceText.textContent = text;
+            }
+        }
+        
+        function updateScanProgress(percentage) {
+            const progressBar = document.getElementById('progress-bar');
+            if (progressBar) {
+                progressBar.style.width = percentage + '%';
+            }
+        }
+        
+        function hideGuidance() {
+            const guidance = document.getElementById('scan-guidance');
+            if (guidance) {
+                guidance.style.display = 'none';
+            }
+        }
+        
+        function startGuidanceAnimation() {
+            scanningGuidanceInterval = setInterval(() => {
+                const guidanceText = document.getElementById('guidance-text');
+                if (guidanceText && guidanceText.textContent.includes('Position barcode')) {
+                    const dots = guidanceText.textContent.match(/\./g);
+                    const dotCount = dots ? dots.length : 0;
+                    const newDots = '.'.repeat((dotCount % 3) + 1);
+                    guidanceText.textContent = 'Position barcode within the scanning area' + newDots;
+                }
+            }, 500);
+        }
+        
+        function stopGuidanceAnimation() {
+            if (scanningGuidanceInterval) {
+                clearInterval(scanningGuidanceInterval);
+                scanningGuidanceInterval = null;
+            }
+        }
+        
+        async function processConfirmedScan(code) {
+            // Stop scanning and show success feedback
+            stopScanning();
+            scannedBarcode = code;
+            
+            // Success animation
+            const scannerContainer = document.querySelector('.scanner-container');
+            scannerContainer.classList.add('scan-success', 'success-pulse');
+            
+            // Play success sound (if available)
+            try {
+                const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBjqVzoTaKCMF');
+                audio.volume = 0.3;
+                audio.play().catch(() => {}); // Ignore errors if audio can't play
+            } catch (error) {
+                // Audio not supported, continue silently
+            }
+            
+            // Clear success animation after delay
+            setTimeout(() => {
+                scannerContainer.classList.remove('scan-success', 'success-pulse');
+            }, 800);
+            
+            // Process scan result
+            const matches = inventory.filter(item => item.barcode === code);
+            
+            if (matches.length > 0) {
+                let html = `<div class="success-message">
+                    <div>✅ Barcode Successfully Scanned!</div>
+                    <div>Barcode: <span class="barcode-display">${code}</span></div>
+                    <div>Product already in inventory:</div>
+                </div>`;
+                
+                for (const item of matches) {
+                    const image = await loadProductImage(item.id) || item.image;
+                    html += `
+                        <div class="inventory-item">
+                            ${image ? `<img src="${image}" alt="Product Image" style="max-width:70px; float:right; margin-left:10px; border-radius:6px;">` : ''}
+                            <h3>${item.name}</h3>
+                            <span class="barcode-display">${item.barcode}</span>
+                            <div class="quantity">Quantity: ${item.quantity}</div>
+                            <p><strong>Location:</strong> ${item.location}</p>
+                            <p><strong>Rating:</strong> <span class="rating">${'★'.repeat(item.rating)}${'☆'.repeat(5-item.rating)}</span> (${item.rating}/5)</p>
+                            ${item.notes ? `<p><strong>Notes:</strong> ${item.notes}</p>` : ''}
+                            <p style="font-size: 12px; color: #999;"><strong>Added:</strong> ${new Date(item.dateAdded).toLocaleDateString()}</p>
+                            <button class="btn btn-secondary" onclick="editProduct(${inventory.indexOf(item)})" style="margin-top: 10px; padding: 8px 16px; font-size: 14px;">Edit Product</button>
+                        </div>
+                    `;
+                }
+                
+                html += `<button class="btn" onclick="openProductModal('${code}', -1)">Create New</button>`;
+                document.getElementById('scan-result').innerHTML = html;
+            } else {
+                let html = `
+                    <div class="success-message">
+                        <div>✅ Barcode Successfully Scanned!</div>
+                        <div>Barcode: <span class="barcode-display">${code}</span></div>
+                        New product detected! Click below to add it to your inventory.
+                    </div>
+                    <button class="btn" onclick="openProductModal('${code}', -1)">Add Product</button>
+                `;
+                document.getElementById('scan-result').innerHTML = html;
+            }
+        }
+        
+        // Flashlight functionality
+        function checkFlashlightSupport(video) {
+            if (video && video.srcObject) {
+                const stream = video.srcObject;
+                const tracks = stream.getVideoTracks();
+                
+                if (tracks.length > 0) {
+                    const track = tracks[0];
+                    const capabilities = track.getCapabilities && track.getCapabilities();
+                    
+                    if (capabilities && capabilities.torch) {
+                        document.getElementById('flashlight-toggle').style.display = 'block';
+                    }
+                }
+            }
+        }
+        
+        function toggleFlashlight() {
+            const video = document.querySelector('#scanner-view video');
+            if (!video || !video.srcObject) return;
+            
+            const stream = video.srcObject;
+            const tracks = stream.getVideoTracks();
+            
+            if (tracks.length > 0) {
+                const track = tracks[0];
+                const capabilities = track.getCapabilities && track.getCapabilities();
+                
+                if (capabilities && capabilities.torch) {
+                    isFlashlightOn = !isFlashlightOn;
+                    
+                    track.applyConstraints({
+                        advanced: [{ torch: isFlashlightOn }]
+                    }).then(() => {
+                        const button = document.getElementById('flashlight-toggle');
+                        if (isFlashlightOn) {
+                            button.classList.add('active');
+                            button.textContent = '🔆';
+                        } else {
+                            button.classList.remove('active');
+                            button.textContent = '🔦';
+                        }
+                    }).catch(error => {
+                        console.warn('Failed to toggle flashlight:', error);
+                        isFlashlightOn = !isFlashlightOn; // Revert state
+                    });
+                }
+            }
+        }
+        
+        // Configuration function
+        function updateConfirmationThreshold(value) {
+            scanConfirmationThreshold = parseInt(value);
+            console.log('Confirmation threshold updated to:', scanConfirmationThreshold);
         }
 
         function manualEntry() {
