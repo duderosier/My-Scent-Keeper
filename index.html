@@ -201,6 +201,53 @@
             70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
             100% { box-shadow: 0 0 0 rgba(16, 185, 129, 0); }
         }
+        
+        /* Scanner settings styles */
+        .scanner-settings {
+            margin-top: 15px;
+            border-top: 1px solid #e0e0e0;
+            padding-top: 15px;
+        }
+        
+        .scanner-settings details {
+            background: rgba(139, 92, 246, 0.1);
+            border-radius: 8px;
+            padding: 10px;
+        }
+        
+        .scanner-settings summary {
+            cursor: pointer;
+            font-weight: bold;
+            color: #7c3aed;
+            margin-bottom: 5px;
+        }
+        
+        .settings-content {
+            margin-top: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+        }
+        
+        .settings-content label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .settings-content select {
+            margin-left: 10px;
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .settings-content small {
+            display: block;
+            color: #666;
+            font-style: italic;
+            margin-top: 5px;
+        }
         .btn,
         .btn-secondary,
         .file-label,
@@ -584,6 +631,24 @@
                 <button class="btn" onclick="startScanning()">Start Scanning</button>
                 <button class="btn btn-secondary" onclick="stopScanning()">Stop Scanning</button>
                 <button class="btn btn-secondary" onclick="manualEntry()">Manual Entry</button>
+            </div>
+            <!-- Scanner Settings -->
+            <div class="scanner-settings">
+                <details>
+                    <summary>⚙️ Scanner Settings</summary>
+                    <div class="settings-content">
+                        <label>
+                            Confirmation Reads: 
+                            <select id="confirmation-threshold" onchange="updateConfirmationThreshold(this.value)">
+                                <option value="1">1 (Fast)</option>
+                                <option value="2">2 (Balanced)</option>
+                                <option value="3" selected>3 (Stable)</option>
+                                <option value="5">5 (Very Stable)</option>
+                            </select>
+                        </label>
+                        <small>Higher values reduce false reads but take longer to confirm.</small>
+                    </div>
+                </details>
             </div>
             <div id="scan-result"></div>
         </div>
@@ -974,8 +1039,16 @@
 
             // Enhanced detection with multi-read confirmation
             Quagga.onDetected(async function(data) {
+                if (!isScanning) return; // Ignore if scanning was stopped
+                
                 const code = data.codeResult.code;
                 const quality = data.codeResult.quality || 0;
+                
+                // Validate barcode format
+                if (!code || code.length < 6) {
+                    console.log('Invalid barcode format, skipping');
+                    return;
+                }
                 
                 // Only process high-quality reads
                 if (quality < 50) return;
@@ -992,12 +1065,29 @@
                 scanConfirmations[code].count++;
                 scanConfirmations[code].qualities.push(quality);
                 
+                // Clean up old confirmations (older than 5 seconds)
+                const now = Date.now();
+                Object.keys(scanConfirmations).forEach(key => {
+                    if (now - scanConfirmations[key].firstDetected > 5000) {
+                        delete scanConfirmations[key];
+                    }
+                });
+                
                 // Update progress indication
                 const progress = Math.min((scanConfirmations[code].count / scanConfirmationThreshold) * 100, 100);
                 updateScanProgress(progress);
                 
                 if (progress < 100) {
                     updateGuidanceText(`Reading barcode... ${scanConfirmations[code].count}/${scanConfirmationThreshold}`);
+                    
+                    // Provide audio feedback for progress
+                    try {
+                        const audio = new Audio('data:audio/wav;base64,UklGRpoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBjqVzoTaKCMF');
+                        audio.volume = 0.1;
+                        audio.play().catch(() => {}); // Ignore errors if audio can't play
+                    } catch (error) {
+                        // Audio not supported, continue silently
+                    }
                     return;
                 }
                 
@@ -1197,6 +1287,12 @@
                     });
                 }
             }
+        }
+        
+        // Configuration function
+        function updateConfirmationThreshold(value) {
+            scanConfirmationThreshold = parseInt(value);
+            console.log('Confirmation threshold updated to:', scanConfirmationThreshold);
         }
 
         function manualEntry() {
