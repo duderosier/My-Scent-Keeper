@@ -968,27 +968,29 @@ function checkForDuplicates() {
     const currentName = nameInput.value.trim().toLowerCase();
     const editingIndex = parseInt(document.getElementById('editing-index').value, 10);
 
-    // Only start searching after 3 characters to avoid too many irrelevant results
     if (currentName.length < 3) {
         warningDiv.style.display = 'none';
         warningDiv.innerHTML = '';
         return;
     }
 
-    // Find items with similar names, excluding the item currently being edited
     const similarItems = inventory.filter((item, index) => {
         if (index === editingIndex) {
             return false;
         }
-        const itemName = item.name.toLowerCase();
-        const distance = levenshtein(currentName, itemName);
-
-        // This threshold determines how "fuzzy" the search is.
-        // A lower number means a stricter match.
-        // We allow a larger distance for longer words.
-        const threshold = Math.floor(itemName.length / 5); // Allow 1 error for every 5 characters
         
-        return distance <= threshold;
+        const itemName = item.name.toLowerCase();
+
+        // Case 1: The input is a direct substring of the item name (e.g., "test" in "test 2")
+        if (itemName.includes(currentName)) {
+            return true;
+        }
+
+        // Case 2: Fuzzy match on individual words (e.g., "tset" vs "test")
+        const itemNameWords = itemName.split(' ');
+        const threshold = 1; // Allow one typo per word for a close match
+
+        return itemNameWords.some(word => levenshtein(currentName, word) <= threshold);
     });
 
     if (similarItems.length > 0) {
