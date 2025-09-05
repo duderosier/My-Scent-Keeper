@@ -325,6 +325,18 @@
             margin: 15px 0;
             text-align: center;
         }
+        .duplicate-warning {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 14px;
+            border-left: 4px solid #bee5eb;
+        }
+        .duplicate-warning strong {
+            color: #0c5460;
+        }        
         #product-image-preview {
             width: 100%;
             max-width: 160px;
@@ -516,6 +528,7 @@
         <div class="modal-content">
             <span class="close" onclick="closeModal()">&times;</span>
             <h3 id="modal-title" style="color: #7c3aed; margin-bottom: 20px;">Add New Product</h3>
+            <div id="duplicate-warning" class="duplicate-warning" style="display: none;"></div>            
             <div id="modal-success"></div>
             <img id="product-image-preview" src="" alt="Product Image" style="display:none;" />
             <div style="display:flex; flex-direction:row; gap:8px; margin-bottom:12px;">
@@ -633,7 +646,9 @@
                     handleImageUpload(e.target.files[0]);
                 }
             });
-
+            // Product name duplicate check
+            const productNameInput = document.getElementById('product-name');
+            productNameInput.addEventListener('input', checkForDuplicates);
             takePhotoInput.addEventListener('change', function(e) {
                 console.log('Take photo file selected:', e.target.files[0]);
                 if (e.target.files && e.target.files[0]) {
@@ -647,6 +662,35 @@
                     closeModal();
                 }
             });
+              // Check for duplicate product names
+            function checkForDuplicates() {
+            const productNameInput = document.getElementById('product-name');
+            const duplicateWarning = document.getElementById('duplicate-warning');
+            const editingIndex = parseInt(document.getElementById('editing-index').value);
+            const productName = productNameInput.value.trim().toLowerCase();
+            
+            if (productName === '') {
+                duplicateWarning.style.display = 'none';
+                return;
+            }
+            
+            // Find duplicates (exclude the current item if editing)
+            const duplicates = inventory.filter((item, index) => {
+                if (editingIndex >= 0 && index === editingIndex) return false;
+                return item.name.toLowerCase().includes(productName) || productName.includes(item.name.toLowerCase());
+            });
+            
+            if (duplicates.length > 0) {
+                let warningHtml = '<strong>⚠️ Similar products found:</strong><br>';
+                duplicates.forEach(item => {
+                    warningHtml += `• <strong>${item.name}</strong> - Qty: ${item.quantity}, Location: ${item.location}<br>`;
+                });
+                duplicateWarning.innerHTML = warningHtml;
+                duplicateWarning.style.display = 'block';
+            } else {
+                duplicateWarning.style.display = 'none';
+            }
+        }      
         }
 
         // New function to open image modal
