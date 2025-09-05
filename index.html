@@ -946,6 +946,7 @@ function checkForDuplicates() {
     const nameInput = document.getElementById('product-name');
     const warningDiv = document.getElementById('duplicate-product-warning');
     const currentName = nameInput.value.trim().toLowerCase();
+    const editingIndex = parseInt(document.getElementById('editing-index').value, 10);
 
     if (currentName === '') {
         warningDiv.style.display = 'none';
@@ -953,12 +954,15 @@ function checkForDuplicates() {
         return;
     }
 
-    const duplicates = inventory.filter(item => item.name.toLowerCase() === currentName);
+    // Find all items with the same name, excluding the item currently being edited.
+    const duplicates = inventory.filter((item, index) => {
+        return item.name.toLowerCase() === currentName && index !== editingIndex;
+    });
 
     if (duplicates.length > 0) {
         let html = '<strong>Duplicate found:</strong><ul>';
         duplicates.forEach(item => {
-            html += `<li>- Qty: ${item.quantity}, Location: ${item.location || 'N/A'}</li>`;
+            html += `<li><strong>${item.name}</strong> - Qty: ${item.quantity}, Location: ${item.location || 'N/A'}</li>`;
         });
         html += '</ul>';
         
