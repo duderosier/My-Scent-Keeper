@@ -383,6 +383,22 @@
             border-radius: 10px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
         }
+        .duplicate-info-box {
+            background: #d1fae5;
+            color: #065f46;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        .duplicate-info-box ul {
+            list-style-type: none;
+            padding-left: 0;
+            margin-top: 5px;
+        }
+        .duplicate-info-box li {
+            margin-top: 5px;
+        }        
         .image-modal img {
             width: 100%;
             height: 100%;
@@ -527,6 +543,7 @@
             <div class="form-group">
                 <label for="product-name">Product Name:</label>
                 <input type="text" id="product-name" placeholder="e.g., 3 Wick Marshmallow Fireside">
+                <div id="duplicate-product-warning" style="display:none;"></div>
             </div>
             <div class="form-group">
                 <label class="barcode-label" for="product-barcode">Barcode:</label>
@@ -615,6 +632,8 @@
 
         // Initialize event listeners
         function initializeEventListeners() {
+    // Check for duplicate product names as user types
+    document.getElementById('product-name').addEventListener('input', checkForDuplicates);            
             // Star rating event listeners
             document.querySelectorAll('#rating-stars .star').forEach(star => {
                 star.addEventListener('click', function() {
@@ -923,7 +942,72 @@
         function closeModal() {
             document.getElementById('product-modal').style.display = 'none';
         }
+function levenshtein(s1, s2) {
+    if (s1.length < s2.length) {
+        return levenshtein(s2, s1);
+    }
+    if (s2.length === 0) {
+        return s1.length;
+    }
+    let previousRow = Array.from({ length: s2.length + 1 }, (_, i) => i);
+    for (let i = 0; i < s1.length; i++) {
+        let currentRow = [i + 1];
+        for (let j = 0; j < s2.length; j++) {
+            let insertions = previousRow[j + 1] + 1;
+            let deletions = currentRow[j] + 1;
+            let substitutions = previousRow[j] + (s1[i] !== s2[j] ? 1 : 0);
+            currentRow.push(Math.min(insertions, deletions, substitutions));
+        }
+        previousRow = currentRow;
+    }
+    return previousRow[s2.length];
+}        
+function checkForDuplicates() {
+    const nameInput = document.getElementById('product-name');
+    const warningDiv = document.getElementById('duplicate-product-warning');
+    const currentName = nameInput.value.trim().toLowerCase();
+    const editingIndex = parseInt(document.getElementById('editing-index').value, 10);
 
+    if (currentName.length < 3) {
+        warningDiv.style.display = 'none';
+        warningDiv.innerHTML = '';
+        return;
+    }
+
+    const similarItems = inventory.filter((item, index) => {
+        if (index === editingIndex) {
+            return false;
+        }
+        
+        const itemName = item.name.toLowerCase();
+
+        // Case 1: The input is a direct substring of the item name (e.g., "test" in "test 2")
+        if (itemName.includes(currentName)) {
+            return true;
+        }
+
+        // Case 2: Fuzzy match on individual words (e.g., "tset" vs "test")
+        const itemNameWords = itemName.split(' ');
+        const threshold = 1; // Allow one typo per word for a close match
+
+        return itemNameWords.some(word => levenshtein(currentName, word) <= threshold);
+    });
+
+    if (similarItems.length > 0) {
+        let html = '<strong>Similar items found:</strong><ul>';
+        similarItems.forEach(item => {
+            html += `<li><strong>${item.name}</strong> - Qty: ${item.quantity}, Location: ${item.location || 'N/A'}</li>`;
+        });
+        html += '</ul>';
+        
+        warningDiv.innerHTML = html;
+        warningDiv.className = 'duplicate-info-box';
+        warningDiv.style.display = 'block';
+    } else {
+        warningDiv.style.display = 'none';
+        warningDiv.innerHTML = '';
+    }
+}
         function editProduct(index) {
             const product = inventory[index];
             openProductModal(product.barcode, index);
