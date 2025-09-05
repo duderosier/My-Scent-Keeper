@@ -942,26 +942,58 @@
         function closeModal() {
             document.getElementById('product-modal').style.display = 'none';
         }
+function levenshtein(s1, s2) {
+    if (s1.length < s2.length) {
+        return levenshtein(s2, s1);
+    }
+    if (s2.length === 0) {
+        return s1.length;
+    }
+    let previousRow = Array.from({ length: s2.length + 1 }, (_, i) => i);
+    for (let i = 0; i < s1.length; i++) {
+        let currentRow = [i + 1];
+        for (let j = 0; j < s2.length; j++) {
+            let insertions = previousRow[j + 1] + 1;
+            let deletions = currentRow[j] + 1;
+            let substitutions = previousRow[j] + (s1[i] !== s2[j] ? 1 : 0);
+            currentRow.push(Math.min(insertions, deletions, substitutions));
+        }
+        previousRow = currentRow;
+    }
+    return previousRow[s2.length];
+}        
 function checkForDuplicates() {
     const nameInput = document.getElementById('product-name');
     const warningDiv = document.getElementById('duplicate-product-warning');
     const currentName = nameInput.value.trim().toLowerCase();
     const editingIndex = parseInt(document.getElementById('editing-index').value, 10);
 
-    if (currentName === '') {
+    // Only start searching after 3 characters to avoid too many irrelevant results
+    if (currentName.length < 3) {
         warningDiv.style.display = 'none';
         warningDiv.innerHTML = '';
         return;
     }
 
-    // Find all items with the same name, excluding the item currently being edited.
-    const duplicates = inventory.filter((item, index) => {
-        return item.name.toLowerCase() === currentName && index !== editingIndex;
+    // Find items with similar names, excluding the item currently being edited
+    const similarItems = inventory.filter((item, index) => {
+        if (index === editingIndex) {
+            return false;
+        }
+        const itemName = item.name.toLowerCase();
+        const distance = levenshtein(currentName, itemName);
+
+        // This threshold determines how "fuzzy" the search is.
+        // A lower number means a stricter match.
+        // We allow a larger distance for longer words.
+        const threshold = Math.floor(itemName.length / 5); // Allow 1 error for every 5 characters
+        
+        return distance <= threshold;
     });
 
-    if (duplicates.length > 0) {
-        let html = '<strong>Duplicate found:</strong><ul>';
-        duplicates.forEach(item => {
+    if (similarItems.length > 0) {
+        let html = '<strong>Similar items found:</strong><ul>';
+        similarItems.forEach(item => {
             html += `<li><strong>${item.name}</strong> - Qty: ${item.quantity}, Location: ${item.location || 'N/A'}</li>`;
         });
         html += '</ul>';
